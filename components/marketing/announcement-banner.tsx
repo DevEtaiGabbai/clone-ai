@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { ArrowRight, FileText } from "lucide-react"
+import { ArrowRight, CreditCard, FileText } from "lucide-react"
 
 export function AnnouncementBanner() {
   return (
@@ -10,9 +10,9 @@ export function AnnouncementBanner() {
       <div className="relative z-10 flex items-center justify-center gap-4 py-1 px-4">
         <div className="flex items-center gap-3 text-sm text-orange-600">
           <div className="relative h-4 w-4 -mr-1">
-            <FileText className="text-orange-600" size={16} />
+            <CreditCard className="text-orange-600" size={16} />
           </div>
-          <span className="font-medium">Introducing /extract - Get web data with a prompt</span>
+          <span className="font-medium">100% free with unlimited usage for the Alpha - No credit card required</span>
           <Link
             href="/extract"
             className="hidden sm:inline-flex rounded-full items-center gap-1 bg-orange-600 px-3 py-[1px] font-medium text-orange-100 hover:bg-orange-700 transition-colors"

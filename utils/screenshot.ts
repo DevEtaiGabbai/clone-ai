@@ -70,7 +70,7 @@ export const generateProject = async (
 export const getScreenshot = async (url: string, darkMode: boolean): Promise<ScreenshotData> => {
   const formattedUrl = formatUrl(url);
   
-  const res = await fetch("/api/getSiteScreenshot", {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_WORKERS_SCREENSHOT_API}/api/screenshot`, {
     method: "POST",
     body: JSON.stringify({ url: formattedUrl, darkMode }),
     headers: {

@@ -15,6 +15,17 @@ import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { NetlifyConnectionCard } from '@/components/ui/netlify-connection';
+import { getInitialNetlifyConnection } from '@/lib/netlify';
+import { Badge } from '@/components/ui/badge';
 
 // Define Project type
 interface Project {
@@ -49,6 +60,13 @@ export default function Page() {
   const router = useRouter();
   const { data: session } = useSession();
   const [greeting, setGreeting] = useState("Hello, ");
+  const [netlifyDialogOpen, setNetlifyDialogOpen] = useState(false);
+  const [netlifyConnection, setNetlifyConnection] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return getInitialNetlifyConnection();
+    }
+    return { user: null, token: '', stats: undefined };
+  });
 
   // if (!session?.user) {
   //   redirect('/auth/login')
@@ -99,6 +117,14 @@ export default function Page() {
 
     fetchUserProjects();
   }, [session]);
+
+  // Add an effect to refresh Netlify connection state when dialog closes
+  useEffect(() => {
+    if (!netlifyDialogOpen && typeof window !== 'undefined') {
+      setNetlifyConnection(getInitialNetlifyConnection());
+    }
+  }, [netlifyDialogOpen]);
+
   // Extract domain from URL for display
   const extractDomain = (url: string) => {
     try {
@@ -228,6 +254,30 @@ export default function Page() {
             <button className="p-2.5 hover:bg-muted rounded-full transition-colors">
               <Search className="h-4 w-4 text-muted-foreground" />
             </button>
+
+            <Dialog open={netlifyDialogOpen} onOpenChange={setNetlifyDialogOpen}>
+              <DialogTrigger asChild>
+                {netlifyConnection.user ? (
+                  <Badge 
+                    variant="outline" 
+                    className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-green-500/10 text-green-500 border-green-200/50 hover:bg-green-500/20 transition-colors"
+                  >
+                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-xs font-medium">Netlify Connected</span>
+                    <span className="text-xs opacity-80 ml-1">({netlifyConnection.stats?.totalSites || 0} sites)</span>
+                  </Badge>
+                ) : (
+                  <Button variant="outline" size="sm" className="h-9 px-4">
+                    <Icons.netlify className="h-4 w-4 mr-2 text-[#00AD9F]" />
+                    Connect to Netlify
+                   </Button>
+                )}
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <NetlifyConnectionCard />
+              </DialogContent>
+            </Dialog>
+
             <div className="h-9 w-9 rounded-full overflow-hidden hover:ring-primary transition-all">
               {session?.user?.image ? (
                 <Image src={session.user.image} alt="Profile" width={36} height={36} />

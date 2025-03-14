@@ -4,6 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import Image from "next/image"
+import { SiteToCode } from "./site-to-code"
 
 export function HeroSection() {
   const [activeTab, setActiveTab] = useState("master")
@@ -26,39 +27,38 @@ export function HeroSection() {
             <span className="hidden sm:inline"> Focus on your business and skip the noise.</span>
           </p>
 
-          <div className="mx-auto mt-8 flex flex-row items-center justify-center gap-4">
-            <Button size="lg" className="rounded-full" asChild>
-              <a href="https://demo-v2.achromatic.dev" target="_blank" rel="noreferrer">
-                Open Demo
-              </a>
-            </Button>
-            <Button variant="outline" size="lg" className="rounded-full" asChild>
-              <a href="/docs">Read Docs</a>
-            </Button>
+          <div className="mt-5 relative max-w-xl mx-auto mb-4 sm:space-x-4">
+            <div className="w-full relative group">
+              <input 
+                placeholder=" " 
+                aria-placeholder="https://example.com" 
+                className="h-[3.25rem] w-full resize-none focus-visible:outline-none focus-visible:ring-orange-500 focus-visible:ring-2 rounded-[18px] text-sm text-[#36322F] px-4 pr-12 border-[.75px] border-border [box-shadow:0_0_0_1px_#e3e1de66,0_1px_2px_#5f4a2e14,0_4px_6px_#5f4a2e0a,0_40px_40px_-24px_#684b2514]" 
+                style={{ filter: "drop-shadow(rgba(249, 224, 184, 0.3) -0.731317px -0.731317px 35.6517px)" }}
+              />
+              <div 
+                aria-hidden="true" 
+                className="absolute top-1/2 -translate-y-1/2 left-4 group-has-[:placeholder-shown]:opacity-100 opacity-0 pointer-events-none text-sm text-opacity-50 text-start"
+              >
+                <span 
+                  className="typewriter_typewriter__Z_ctM typewriter_withCaret__ADJQ1 group-has-[input:focus-visible]:border-none text-[#605A57]/50" 
+                  style={{ "--text-length": "19" } as React.CSSProperties}
+                >
+                  https://example.com
+                </span>
+              </div>
+            </div>
+            <button 
+              type="submit" 
+              className="absolute top-1/2 transform -translate-y-1/2 right-2 flex h-10 items-center justify-center rounded-md px-3 text-sm font-medium text-zinc-500 hover:text-zinc-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-950 focus-visible:ring-offset-2"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="h-4 w-4">
+                <polyline points="9 10 4 15 9 20"></polyline>
+                <path d="M20 4v7a4 4 0 0 1-4 4H4"></path>
+              </svg>
+            </button>
           </div>
         </div>
-
-        <Tabs defaultValue="master" className="w-full">
-          <TabsList className="items-center text-muted-foreground mb-6 flex h-fit flex-row justify-start sm:justify-center">
-            <TabsTrigger value="master">Master page</TabsTrigger>
-            <TabsTrigger value="detail">Detail page</TabsTrigger>
-            <TabsTrigger value="settings">Settings</TabsTrigger>
-            <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-            <TabsTrigger value="login">Login</TabsTrigger>
-          </TabsList>
-          <div className="relative mb-1 w-full rounded-xl bg-neutral-50 p-1 dark:border-none dark:bg-background">
-            <TabsContent value="master">
-              <Image
-                src="https://achromatic.dev/images/dark-contacts.webp"
-                alt="Master page screenshot"
-                width={1340}
-                height={652}
-                className="rounded-xl border shadow"
-              />
-            </TabsContent>
-            {/* Add other TabsContent components for other tabs */}
-          </div>
-        </Tabs>
+        <SiteToCode />
       </div>
     </section>
   )

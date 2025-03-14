@@ -382,6 +382,16 @@ export default function ClonePage({ params }: { params: { id: string } }) {
     };
   }, [handleFileSave, saveStatus, selectedFile]);
 
+  // Convert files array to record for Netlify deployment
+  const filesToDeploy = useCallback((): Record<string, string> => {
+    if (!data?.files) return {};
+    
+    return data.files.reduce((acc, file) => {
+      acc[file.path] = file.content;
+      return acc;
+    }, {} as Record<string, string>);
+  }, [data?.files]);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -437,6 +447,8 @@ export default function ClonePage({ params }: { params: { id: string } }) {
             lastSavedTime={lastSavedTime}
             handleFileSave={handleFileSave}
             unsavedChanges={unsavedChanges}
+            projectId={params.id}
+            files={filesToDeploy()}
           />
           
           {/* Main Content */}

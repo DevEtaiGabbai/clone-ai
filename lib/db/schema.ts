@@ -20,6 +20,12 @@ export const projects = pgTable('projects', {
   progress: integer('progress').default(0).notNull(),
   workflowRunId: text('workflow_run_id'),
   userId: text('user_id').references(() => users.id),
+  // Netlify deployment fields
+  netlifySiteId: text('netlify_site_id'),
+  netlifySiteName: text('netlify_site_name'),
+  netlifySiteUrl: text('netlify_site_url'),
+  netlifySiteDeployId: text('netlify_site_deploy_id'),
+  netlifySiteDeployedAt: timestamp('netlify_site_deployed_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

@@ -94,7 +94,8 @@ async function callOpenRouterAPI(messages: any[], projectId: string, progressVal
   });
   
   const requestBody = {
-    model: "google/gemini-2.0-pro-exp-02-05:free",
+    model: 'google/gemini-2.0-pro-exp-02-05:free',
+    // model: "google/gemini-2.0-flash-001", // FREE: google/gemini-2.0-pro-exp-02-05:free"
     messages: messages,
     max_tokens: 8192,
     temperature: 0.1,
