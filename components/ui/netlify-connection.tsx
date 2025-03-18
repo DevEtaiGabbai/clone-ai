@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
-import { ExternalLink, Loader2, X, Calendar, Clock, Globe, Link2 } from 'lucide-react';
+import { ExternalLink, Loader2, X, Calendar, Clock, Globe, Link2, RefreshCw, RotateCw, Lock, KeyRound, MoreVertical, LogOut, Unlink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -16,6 +16,7 @@ import {
 } from '@/lib/netlify';
 import { Icons } from '@/components/ui/icons';
 import type { NetlifyConnection, NetlifySite } from '@/types/netlify';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './dropdown-menu';
 
 export function NetlifyConnectionCard() {
   const [connection, setConnection] = useState<NetlifyConnection>(getInitialNetlifyConnection());
@@ -131,11 +132,8 @@ export function NetlifyConnectionCard() {
       <div className="flex flex-col">
         <div className="flex items-center gap-2 mb-3">
           <Icons.netlify className="h-5 w-5 text-[#00AD9F]" />
-          <h2 className="text-xl font-semibold">Netlify Connection</h2>
+          <h2 className="text-xl font-semibold">Netlify Integration</h2>
         </div>
-        <p className="text-sm text-muted-foreground mb-6">
-          Deploy your applications directly to Netlify
-        </p>
       </div>
       
       {!connection.user ? (
@@ -150,14 +148,14 @@ export function NetlifyConnectionCard() {
               onChange={(e) => setToken(e.target.value)}
               disabled={connecting}
               placeholder="Enter your Netlify personal access token"
-              className="font-mono"
+              className=""
             />
             <p className="text-xs text-muted-foreground">
               <a
                 href="https://app.netlify.com/user/applications#personal-access-tokens"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-muted-foreground hover:underline"
               >
                 Get your token from Netlify
                 <ExternalLink className="h-3 w-3" />
@@ -186,50 +184,39 @@ export function NetlifyConnectionCard() {
       ) : (
         <div className="space-y-5">
           <div className="flex flex-col space-y-5">
-            <div className="flex justify-between items-center">
-              <Button variant="outline" size="sm" className="bg-green-500/10 border-green-600/20 text-green-600 hover:bg-green-500/20 px-4 gap-2 pointer-events-none">
-                <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4">
-                  <path d="M7.75 12.75L10 15.25L16.25 8.75" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                Connected
-              </Button>
-              
-              <Button 
-                onClick={handleDisconnect} 
-                variant="outline" 
-                size="sm"
-                className="bg-red-500/10 text-red-500 border-red-200/20 hover:bg-red-500/20 px-4 gap-2"
-              >
-                <X className="h-4 w-4" />
-                Disconnect
-              </Button>
-            </div>
-
-            <div className="bg-muted/30 rounded-xl p-5">
-              <div className="flex items-center gap-4">
-                <Avatar className="h-14 w-14 rounded-full overflow-hidden border-4 border-[#00AD9F]/20">
-                  <AvatarImage src={connection.user.avatar_url} alt={connection.user.full_name} />
-                  <AvatarFallback className="bg-[#00AD9F]/10 text-[#00AD9F]">{connection.user.full_name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                
-                <div className="flex flex-col">
-                  <h3 className="text-lg font-medium">{connection.user.full_name}</h3>
-                  <p className="text-sm text-muted-foreground">{connection.user.email}</p>
-                  <a
-                    href="https://app.netlify.com/"
-                    target="_blank" 
-                    rel="noopener noreferrer"
-                    className="text-[#00AD9F] hover:underline text-sm mt-1 inline-flex items-center gap-1"
-                  >
-                    Netlify Dashboard
-                    <ExternalLink className="h-3 w-3" />
-                  </a>
+            <div className="border border-border/40 rounded-xl p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-14 w-14 rounded-full overflow-hidden">
+                    <AvatarImage src={connection.user.avatar_url} alt={connection.user.full_name} />
+                    <AvatarFallback className="bg-[#00AD9F]/10 text-[#00AD9F]">{connection.user.full_name.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex flex-col">
+                    <h3 className="text-lg font-medium">{connection.user.full_name}</h3>
+                    <p className="text-sm text-muted-foreground">{connection.user.email}</p>
+                  </div>
                 </div>
+                
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <MoreVertical className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem 
+                      className="cursor-pointer flex items-center gap-2 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30" 
+                      onClick={handleDisconnect}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span>Disconnect Account</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           </div>
-
-          <Separator className="my-5" />
 
           <div className="space-y-3">
             <div className="flex items-center justify-between mb-2">
@@ -245,10 +232,7 @@ export function NetlifyConnectionCard() {
                 disabled={fetchingStats}
                 className="h-8 w-8 rounded-full"
               >
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={fetchingStats ? "animate-spin" : ""}>
-                  <path d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9" />
-                </svg>
-                <span className="sr-only">Refresh</span>
+                <RotateCw className={`h-4 w-4 ${fetchingStats ? "animate-spin" : ""}`} />
               </Button>
             </div>
             
@@ -343,10 +327,12 @@ export function NetlifyConnectionCard() {
           </div>
         </div>
       )}
-      
-      <p className="text-xs text-muted-foreground mt-6 text-center">
-        Your token is stored securely in your browser
-      </p>
+      <div className="flex items-center justify-center gap-2 mt-6">
+        <KeyRound className="h-4 w-4 text-muted-foreground" />
+        <p className="text-xs text-muted-foreground">
+          Your token is stored securely in your browser cookies
+        </p>
+      </div>
     </div>
   );
 } 

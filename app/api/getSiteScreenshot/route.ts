@@ -8,6 +8,10 @@ const utapi = new UTApi();
 // We can't use edge runtime due to Sharp
 export const runtime = 'nodejs';
 
+// Performance optimization
+sharp.cache(false); // Disable Sharp cache to reduce memory usage
+sharp.concurrency(4); // Use 4 threads for processing
+
 interface ScreenshotChunk {
   url: string;
   chunkNumber: number;
@@ -40,7 +44,7 @@ function validateExtractArea(params: { top: number; left: number; width: number;
 }
 
 async function processChunk(params: { 
-  image: sharp.Sharp, 
+  imageBuffer: Buffer,
   startY: number, 
   width: number, 
   height: number, 
@@ -48,7 +52,7 @@ async function processChunk(params: {
   metadata: sharp.Metadata,
   url: string 
 }): Promise<ScreenshotChunk> {
-  const { image, startY, width, height, chunkNumber, metadata, url } = params;
+  const { imageBuffer, startY, width, height, chunkNumber, metadata, url } = params;
 
   // Validate extraction area
   validateExtractArea({
@@ -60,29 +64,28 @@ async function processChunk(params: {
     imageHeight: metadata.height!
   });
 
-  // Extract and process chunk
-  const chunk = await image
-    .clone() // Important: clone the image for parallel processing
+  // Create new sharp instance for this chunk to avoid memory issues
+  const chunkBuffer = await sharp(imageBuffer, { 
+    limitInputPixels: false, // Disable input size limit
+    failOn: 'none' // Be more permissive with image issues
+  })
     .extract({
       left: 0,
       top: startY,
       width,
       height
     })
-    .toBuffer();
+    .toBuffer({ resolveWithObject: false });
 
-  // Create a unique filename
-  const sanitizedUrl = url.replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+  // Create a unique filename - simplified for performance
   const timestamp = Date.now();
-  const filename = `screenshot_${sanitizedUrl}_${timestamp}_chunk${chunkNumber}.png`;
+  const filename = `sc_${chunkNumber}_${timestamp}.png`;
 
   // Create a File object from the buffer
-  const file = new File([chunk], filename, { type: "image/png" });
-  Object.defineProperty(file, 'lastModified', {
-    value: timestamp
-  });
+  const file = new File([chunkBuffer], filename, { type: "image/png" });
 
-  // Upload to UploadThing using server API
+  // Upload to UploadThing using server API 
+  // Note: Multiple uploads happen in parallel naturally through Promise.all outside
   const uploadResponse = await utapi.uploadFiles([file]);
 
   if (!uploadResponse[0]?.data?.url) {
@@ -106,11 +109,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Handle case where darkMode is missing from request body
-      if (darkMode === undefined) {
-        return NextResponse.json({ error: 'Dark mode parameter is required' }, { status: 400 });
-      }
+    if (darkMode === undefined) {
+      return NextResponse.json({ error: 'Dark mode parameter is required' }, { status: 400 });
+    }
 
-      if (typeof darkMode !== 'boolean') {
+    if (typeof darkMode !== 'boolean') {
       return NextResponse.json({ error: 'Dark mode must be a boolean value if provided' }, { status: 400 });
     }
 
@@ -121,19 +124,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Screenshot service not configured' }, { status: 500 });
     }
 
-    // Configure ScreenshotOne client
+    // Configure ScreenshotOne client with optimized settings
     const client = new screenshotone.Client(screenshotApiKey, screenshotSecret);
     const options = screenshotone.TakeOptions
       .url(url)
       .fullPage(true)
-      .format('png');
+      .format('png')
+      .delay(500); // Just enough delay to ensure page loads
 
     if (darkMode) {
       options.darkMode(true);
     }
-
+    
+    // Fetch screenshot faster with timeout
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    
     const signedUrl = await client.generateSignedTakeURL(options);
-    const response = await fetch(signedUrl);
+    const response = await fetch(signedUrl, { 
+      signal: controller.signal,
+      headers: {
+        'Accept-Encoding': 'gzip, deflate, br' // Request compressed response
+      }
+    }).finally(() => clearTimeout(timeout));
 
     if (!response.ok) {
       // Get more details about the error
@@ -149,9 +162,15 @@ export async function POST(req: NextRequest) {
       throw new Error(`Screenshot service error: ${response.status} ${response.statusText} - ${errorText}`);
     }
 
-    // Process image setup - simplified to avoid stream issues
-    const imageBuffer = await response.arrayBuffer();
-    const image = sharp(Buffer.from(imageBuffer));
+    // Process image with optimized memory usage
+    const imageBuffer = Buffer.from(await response.arrayBuffer());
+    
+    // Create a sharp instance only for metadata extraction
+    const image = sharp(imageBuffer, { 
+      limitInputPixels: false, // Disable input size limit 
+      failOn: 'none' // Be more permissive with image issues
+    });
+    
     const metadata = await image.metadata();
     
     if (!metadata.height || !metadata.width) {
@@ -164,29 +183,36 @@ export async function POST(req: NextRequest) {
     const chunkHeight = Math.floor((imageWidth / 16) * 9);
     const numberOfChunks = Math.ceil(imageHeight / chunkHeight);
 
-    // Process all chunks in parallel
-    const chunkPromises = Array.from({ length: numberOfChunks }, (_, i) => {
+    // Free memory by removing the original sharp instance
+    image.destroy();
+
+    // Prepare chunk processing promises
+    const chunkPromises = [];
+    for (let i = 0; i < numberOfChunks; i++) {
       const startY = i * chunkHeight;
       const height = Math.min(chunkHeight, imageHeight - startY);
 
-      if (height <= 0) return null;
+      if (height <= 0) continue;
 
-      return processChunk({
-        image,
+      chunkPromises.push(processChunk({
+        imageBuffer, // Pass the buffer instead of the sharp instance
         startY,
         width: imageWidth,
         height,
         chunkNumber: i + 1,
         metadata,
         url
-      });
-    }).filter(Boolean);
+      }));
+    }
 
     const chunks = await Promise.all(chunkPromises);
 
     if (chunks.length === 0) {
       throw new Error('No valid chunks were generated');
     }
+
+    // Help garbage collection
+    (imageBuffer as any) = null;
 
     return NextResponse.json({
       originalUrl: url,

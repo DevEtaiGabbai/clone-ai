@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { notFound, useRouter } from "next/navigation";
 import { WebContainerHandle } from "@/components/web-container";
-import { Loader2, PanelLeft } from "lucide-react";
+import { ArrowLeft, Loader2, OctagonAlert, PanelLeft, Search, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -15,6 +15,8 @@ import { EditorHeader } from "@/components/editor/editor-header";
 import { EditorContent } from "@/components/editor/editor-content";
 import { ProjectData, FileTreeNode, TerminalTab } from "@/types/project";
 import { TerminalSection } from "@/components/terminal/terminal-section";
+import { Input } from "@/components/ui/input";
+import { Alert } from "@/components/ui/alert";
 
 // Utility function for debouncing
 const debounce = <T extends (...args: any[]) => any>(
@@ -37,10 +39,10 @@ const FixedSidebarTrigger = () => {
     <Button
       variant="outline"
       size="icon"
-      className="fixed bottom-4 left-4 z-50 rounded-full shadow-md bg-background border-primary/20 hover:bg-accent"
+      className="fixed bottom-4 left-4 z-50 h-9 w-9 rounded-full shadow-md bg-background/90 backdrop-blur-sm border-border/30 hover:bg-accent/50 transition-all"
       onClick={toggleSidebar}
     >
-      <PanelLeft className="h-4 w-4" />
+      <PanelLeft className="h-4 w-4 text-muted-foreground" />
       <span className="sr-only">Toggle Sidebar</span>
     </Button>
   );
@@ -398,9 +400,12 @@ export default function ClonePage({ params }: { params: { id: string } }) {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
+      <div className="flex h-screen items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full blur-md bg-primary/10 animate-pulse"></div>
+            <Loader2 className="h-7 w-7 animate-spin text-muted-foreground relative" />
+          </div>
           <p className="text-sm text-muted-foreground">Loading project...</p>
         </div>
       </div>
@@ -408,14 +413,192 @@ export default function ClonePage({ params }: { params: { id: string } }) {
   }
 
   if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Card className="p-6">
-          <div className="flex flex-col items-center gap-4">
-            <p className="text-destructive">{error}</p>
-            <Button onClick={fetchData} variant="outline">Retry</Button>
+    // Check if this is a "project not found" error
+    if (error === "NEXT_NOT_FOUND") {
+      return (
+        <div className="relative flex items-center justify-center min-h-svh overflow-hidden">
+          {/* Subtle animated background */}
+          <div className="absolute inset-0 bg-gradient-to-br from-background via-background/90 to-muted/30">
+            <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-foreground/40 to-transparent" />
           </div>
-        </Card>
+          
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] -translate-y-1/4 translate-x-1/4">
+            <div className="absolute w-full h-full rounded-full bg-muted/10 blur-[100px]" />
+          </div>
+          <div className="absolute bottom-0 left-0 w-[600px] h-[600px] translate-y-1/4 -translate-x-1/4">
+            <div className="absolute w-full h-full rounded-full bg-primary/5 blur-[100px]" />
+          </div>
+          
+          {/* Main content container */}
+          <div className="relative z-10 w-full max-w-2xl px-6 py-12 mx-auto">
+            <div className="backdrop-blur-sm border border-border/20 bg-background/50 rounded-2xl shadow-xl overflow-hidden">
+              {/* Top accent bar */}
+              <div className="h-1 w-full bg-gradient-to-r from-muted-foreground/40 via-muted-foreground/60 to-muted-foreground/40" />
+              
+              <div className="p-8 sm:p-10">
+                {/* Error icon */}
+                <div className="flex justify-center mb-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 rounded-full bg-muted/10 blur-md animate-pulse" />
+                    <div className="relative h-16 w-16 rounded-full bg-background/80 border border-border/30 flex items-center justify-center shadow-sm">
+                      <Search className="h-8 w-8 text-muted-foreground/80" strokeWidth={1.5} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Error title */}
+                <h1 className="text-balance text-2xl sm:text-3xl font-semibold tracking-tight text-foreground text-center mb-3">
+                  Project not found
+                </h1>
+                
+                <p className="text-center text-muted-foreground mb-8 max-w-md mx-auto">
+                  The project you're looking for does not exist or may have been deleted.
+                </p>
+                
+                {/* Additional context */}
+                <div className="relative group mb-8">
+                  <div className="absolute inset-0 rounded-lg bg-muted/5 blur-sm group-hover:bg-muted/10 transition-colors" />
+                  <div className="relative p-4 rounded-lg border border-border/40 bg-muted/20 backdrop-blur-sm">
+                    <p className="text-sm text-center text-foreground/70">
+                      Project ID: <span className="font-mono text-muted-foreground">{params.id}</span>
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Actions */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
+                  <Button 
+                    variant="outline" 
+                    asChild 
+                    className="w-full sm:w-auto transition-all hover:bg-primary/5 border-border/60 shadow-sm group"
+                  >
+                    <a href="#" onClick={() => router.back()}>
+                      <ArrowLeft
+                        className="mr-2 text-primary/70 transition-transform group-hover:-translate-x-1"
+                        size={16}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                      <span className="font-medium">Go back</span>
+                    </a>
+                  </Button>
+                  
+                  <Button 
+                    variant="default" 
+                    asChild 
+                    className="w-full sm:w-auto bg-primary/90 hover:bg-primary group shadow-sm"
+                  >
+                    <a href="/dashboard">
+                      <span className="font-medium">Go to Dashboard</span>
+                      <ArrowRight
+                        className="ml-2 text-primary-foreground/80 transition-transform group-hover:translate-x-1"
+                        size={16}
+                        strokeWidth={2}
+                        aria-hidden="true"
+                      />
+                    </a>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    // Original error UI for other types of errors
+    return (
+      <div className="relative flex items-center justify-center min-h-svh overflow-hidden">
+        {/* Subtle animated background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background via-background/90 to-muted/30">
+          <div className="absolute inset-0 opacity-[0.03] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-foreground/40 to-transparent" />
+        </div>
+        
+        {/* Decorative elements */}
+        <div className="absolute top-0 right-0 w-[600px] h-[600px] -translate-y-1/4 translate-x-1/4">
+          <div className="absolute w-full h-full rounded-full bg-destructive/5 blur-[100px]" />
+        </div>
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] translate-y-1/4 -translate-x-1/4">
+          <div className="absolute w-full h-full rounded-full bg-primary/5 blur-[100px]" />
+        </div>
+        
+        {/* Main content container */}
+        <div className="relative z-10 w-full max-w-2xl px-6 py-12 mx-auto">
+          <div className="backdrop-blur-sm border border-border/20 bg-background/50 rounded-2xl shadow-xl overflow-hidden">
+            {/* Top accent bar */}
+            <div className="h-1 w-full bg-gradient-to-r from-destructive/70 via-destructive to-destructive/70" />
+            
+            <div className="p-8 sm:p-10">
+              {/* Error icon */}
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-full bg-destructive/10 blur-md animate-pulse" />
+                  <div className="relative h-16 w-16 rounded-full bg-background/80 border border-border/30 flex items-center justify-center shadow-sm">
+                    <OctagonAlert className="h-8 w-8 text-destructive/90" strokeWidth={1.5} />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Error title */}
+              <h1 className="text-balance text-2xl sm:text-3xl font-semibold tracking-tight text-foreground text-center mb-3">
+                We encountered an error
+              </h1>
+              
+              <p className="text-center text-muted-foreground mb-8 max-w-md mx-auto">
+                We couldn't load your project. Please try again or contact support if the problem persists.
+              </p>
+              
+              {/* Error message */}
+              <div className="relative group mb-8">
+                <div className="absolute inset-0 rounded-lg bg-destructive/5 blur-sm group-hover:bg-destructive/10 transition-colors" />
+                <div className="relative p-4 rounded-lg border border-border/40 bg-muted/30 backdrop-blur-sm overflow-auto max-h-32">
+                  <p className="text-sm font-mono text-foreground/80 break-all">{error}</p>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-2">
+                <Button 
+                  variant="outline" 
+                  asChild 
+                  className="w-full sm:w-auto transition-all hover:bg-primary/5 border-border/60 shadow-sm group"
+                >
+                  <a href="#" onClick={() => router.back()}>
+                    <ArrowLeft
+                      className="mr-2 text-primary/70 transition-transform group-hover:-translate-x-1"
+                      size={16}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                    <span className="font-medium">Go back</span>
+                  </a>
+                </Button>
+                
+                <Button 
+                  variant="default" 
+                  asChild 
+                  className="w-full sm:w-auto bg-primary/90 hover:bg-primary group shadow-sm"
+                >
+                  <a href="/dashboard">
+                    <span className="font-medium">Dashboard</span>
+                    <ArrowRight
+                      className="ml-2 text-primary-foreground/80 transition-transform group-hover:translate-x-1"
+                      size={16}
+                      strokeWidth={2}
+                      aria-hidden="true"
+                    />
+                  </a>
+                </Button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer text */}
+          <p className="text-xs text-center text-muted-foreground/70 mt-6">
+            Reference ID: {Math.random().toString(36).substring(2, 10).toUpperCase()}
+          </p>
+        </div>
       </div>
     );
   }
@@ -425,9 +608,14 @@ export default function ClonePage({ params }: { params: { id: string } }) {
   const pathSegments = selectedFile?.split('/').filter(Boolean);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
+    <div className="h-screen flex flex-col overflow-hidden bg-background">
       <SidebarProvider>
         <AppSidebar
+          user={{
+            name: "John Doe",
+            email: "johndoe@gmail.com",
+            avatar: "https://github.com/shadcn.png"
+          }}
           files={data.files}
           selectedFile={selectedFile}
           onFileSelect={handleFileSelect}
@@ -464,7 +652,7 @@ export default function ClonePage({ params }: { params: { id: string } }) {
               devServerTerminalRef={devServerTerminalRef}
             />
 
-            <ResizableHandle withHandle />
+            <ResizableHandle withHandle className="h-1 bg-border/30 hover:bg-border/50 transition-colors after:h-1" />
 
             {/* Terminal Section */}
             <TerminalSection 

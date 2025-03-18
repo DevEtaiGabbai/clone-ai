@@ -1,4 +1,4 @@
-import { LucideProps } from "lucide-react"
+import { LucideProps, PackageIcon } from "lucide-react"
 
 export const Icons = {
     gitHub: ({ ...props }: LucideProps) => (

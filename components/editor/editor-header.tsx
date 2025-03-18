@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { Code, Globe, Download, Rocket, ChevronDown, ExternalLink } from "lucide-react";
+import { Code, Globe, Download, Rocket, ChevronDown, ExternalLink, Copy, RefreshCw, Check, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileBreadcrumb } from "./file-breadcrumb";
 import { FileStatusPill, SaveStatus } from "@/components/ui/file-status-pill";
@@ -24,6 +24,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getInitialNetlifyConnection, deployToNetlify } from "@/lib/netlify";
+import { cn } from "@/lib/utils";
 
 interface EditorHeaderProps {
   activeView: "editor" | "preview";
@@ -146,24 +147,24 @@ export function EditorHeader({
   }, []);
 
   return (
-    <div className="border-b overflow-x-hidden">
-      <div className="flex items-center justify-between px-4 py-2">
-        <div className="flex items-center gap-4 overflow-hidden">
+    <div className="border-b border-border/50 bg-background">
+      <div className="flex items-center justify-between px-3 py-1.5">
+        <div className="flex items-center gap-3 overflow-hidden">
           <CodePreviewTab
             value={activeView}
             onValueChange={(val) => setActiveView(val as "editor" | "preview")}
-            className="w-[200px] shrink-0"
+            className="w-[180px] h-8 shrink-0"
           >
             <CodePreviewTabList>
-              <CodePreviewTabTrigger value="editor">
-                <div className="flex items-center gap-2">
-                  <Code className="h-4 w-4" />
+              <CodePreviewTabTrigger value="editor" className="text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Code className="h-3.5 w-3.5" />
                   Editor
                 </div>
               </CodePreviewTabTrigger>
-              <CodePreviewTabTrigger value="preview">
-                <div className="flex items-center gap-2">
-                  <Globe className="h-4 w-4" />
+              <CodePreviewTabTrigger value="preview" className="text-xs">
+                <div className="flex items-center gap-1.5">
+                  <Globe className="h-3.5 w-3.5" />
                   Preview
                 </div>
               </CodePreviewTabTrigger>
@@ -172,7 +173,7 @@ export function EditorHeader({
 
           {/* Enhanced breadcrumb with dropdowns */}
           {activeView === "editor" && pathSegments && (
-            <div className="overflow-hidden">
+            <div className="overflow-hidden mx-1 border-l border-border/20 pl-3">
               <FileBreadcrumb
                 pathSegments={pathSegments}
                 onFileSelect={onFileSelect}
@@ -183,18 +184,22 @@ export function EditorHeader({
           )}
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Main Save Button - Only show in editor mode */}
           {activeView === "editor" && (
             <Button 
               onClick={handleFileSave} 
               size="sm" 
-              className="gap-2 min-w-[90px] transition-all"
+              className={cn(
+                "h-7 px-3 gap-1.5 text-xs font-medium transition-all border",
+                unsavedChanges 
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 border-primary/30" 
+                  : "bg-muted/30 hover:bg-muted/50 text-muted-foreground border-border/30"
+              )}
               disabled={!unsavedChanges || saveStatus === 'saving'}
-              variant="outline"
             >
-                  <Icons.save className="h-4 w-4" />
-                  Save
+              <Icons.save className="h-3.5 w-3.5" />
+              Save
             </Button>
           )}
           
@@ -209,20 +214,20 @@ export function EditorHeader({
           {/* Export/Deploy dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
+              <Button variant="outline" size="sm" className="h-7 px-3 gap-1.5 text-xs">
+                <Download className="h-3.5 w-3.5" />
                 <span>Export</span>
-                <ChevronDown className="h-4 w-4 opacity-50" />
+                <ChevronDown className="h-3 w-3 opacity-50 ml-0.5" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={handleDownload}>
-                <Download className="mr-2 h-4 w-4" />
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuItem onClick={handleDownload} className="text-xs">
+                <Download className="mr-2 h-3.5 w-3.5" />
                 <span>Download as ZIP</span>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => setShowDeployDialog(true)}>
-                <Icons.netlify className="mr-2 h-4 w-4" />
+              <DropdownMenuItem onClick={() => setShowDeployDialog(true)} className="text-xs">
+                <Icons.netlify className="mr-2 h-3.5 w-3.5" />
                 <span>{deploymentInfo ? 'Manage Netlify Deployment' : 'Deploy to Netlify'}</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -232,96 +237,125 @@ export function EditorHeader({
 
       {/* Netlify Deployment Dialog */}
       <Dialog open={showDeployDialog} onOpenChange={setShowDeployDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Deploy to Netlify</DialogTitle>
-            <DialogDescription>
+        <DialogContent className="sm:max-w-[450px] p-0 overflow-hidden bg-background border border-border/50">
+          <DialogHeader className="p-5 border-b border-border/10">
+            <div className="flex items-center gap-2">
+              <Icons.netlify className="h-4 w-4 text-foreground/70" />
+              <DialogTitle>Deploy to Netlify</DialogTitle>
+            </div>
+            <DialogDescription className="text-muted-foreground mt-1.5 text-sm">
               {netlifyConnection.user 
-                ? `Deploy your project to Netlify as ${netlifyConnection.user.full_name}`
+                ? `Connected as ${netlifyConnection.user.full_name}`
                 : 'Connect to Netlify to deploy your project'}
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-6">
+          <div className="p-5">
             {!netlifyConnection.user ? (
-              <div className="flex flex-col items-center justify-center p-6 text-center">
-                <Icons.netlify className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-medium mb-2">Not Connected to Netlify</h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  You need to connect your Netlify account first to deploy your project.
+              <div className="flex flex-col items-center justify-center py-6 text-center">
+                <Icons.netlify className="h-8 w-8 text-foreground/70 mb-4" />
+                <h3 className="text-base font-medium mb-2">Connect Your Account</h3>
+                <p className="text-sm text-muted-foreground mb-5 max-w-[280px]">
+                  Connect to Netlify to get a public URL for your project
                 </p>
-                <Button onClick={() => window.location.href = '/dashboard'}>
-                  Go to Dashboard to Connect
+                <Button 
+                  onClick={() => window.location.href = '/dashboard'} 
+                  variant="outline"
+                  className="gap-2"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  Connect Account
                 </Button>
               </div>
             ) : (
               <>
                 {isDeploying ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Deploying to Netlify...</span>
-                      <Badge variant="outline" className="bg-primary/10 text-primary">
+                  <div className="space-y-4 py-2">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm">Deploying your project</span>
+                      <Badge variant="outline" className="bg-background text-foreground border-border px-2 py-0.5 text-xs font-normal">
                         {deployProgress}%
                       </Badge>
                     </div>
-                    <Progress value={deployProgress} className="h-2" />
-                    <p className="text-xs text-muted-foreground">
-                      This may take a few moments. Please don't close this window.
-                    </p>
+                    <Progress value={deployProgress} className="h-1.5 bg-muted/30" />
+                    <div className="mt-4">
+                      <p className="text-xs text-muted-foreground">
+                        Your project is being prepared for the web
+                      </p>
+                    </div>
                   </div>
                 ) : deploymentInfo ? (
-                  <div className="space-y-4">
-                    <div className="rounded-md border p-4">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-sm font-medium">Deployment URL</h4>
-                        <Badge variant="outline" className="bg-green-500/10 text-green-500">Live</Badge>
-                      </div>
+                  <div className="space-y-4 py-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <div className="size-1.5 rounded-full bg-foreground/70"></div>
+                      <span className="font-medium">Site is live</span>
+                    </div>
+                    <div className="flex items-center gap-2 bg-muted/10 rounded-md border border-border/40 px-3 py-2.5">
+                      <Icons.netlify className="h-3.5 w-3.5 text-foreground/70 flex-shrink-0" />
                       <a 
                         href={deploymentInfo.url} 
                         target="_blank"
                         rel="noopener noreferrer" 
-                        className="text-sm text-primary mt-2 block hover:underline truncate"
+                        className="text-sm hover:underline truncate flex-1"
                       >
                         {deploymentInfo.url}
                       </a>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        This site is hosted on Netlify and can be accessed by anyone with the link.
-                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-6 w-6"
+                        onClick={() => {
+                          navigator.clipboard.writeText(deploymentInfo.url);
+                          toast.success("URL copied to clipboard");
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                      </Button>
                     </div>
-                    <div className="flex justify-between items-center">
+                    <div className="flex justify-between items-center gap-3 mt-4">
                       <Button 
                         variant="outline" 
                         size="sm" 
                         onClick={handleDeploy}
                         disabled={isDeploying}
+                        className="flex-1"
                       >
-                        <Icons.netlify className="mr-2 h-4 w-4" />
-                        Redeploy Site
+                        <RefreshCw className="mr-2 h-3.5 w-3.5" />
+                        Update
                       </Button>
                       <Button
+                        variant="outline"
                         size="sm"
                         onClick={() => window.open(deploymentInfo.url, '_blank')}
+                        className="flex-1"
                       >
-                        <ExternalLink className="mr-2 h-4 w-4" />
-                        Visit Site
+                        <ExternalLink className="mr-2 h-3.5 w-3.5" />
+                        Visit
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-4">
-                    <div className="rounded-md border p-4">
-                      <h4 className="text-sm font-medium mb-2">Ready to Deploy</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Your project will be deployed to Netlify with a unique URL.
-                        You can share this URL with anyone to showcase your work.
+                  <div className="space-y-5 py-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-medium">Ready to deploy</span>
+                    </div>
+                    
+                    <div className="border border-border/30 p-4 rounded-md">
+                      <p className="text-sm text-muted-foreground mb-1">
+                        Deploy to get a public URL for your project.
+                      </p>
+                      <p className="text-xs text-muted-foreground/70">
+                        Updates are just one click away after deployment.
                       </p>
                     </div>
+                    
                     <Button 
                       className="w-full"
+                      variant="outline"
                       onClick={handleDeploy}
                       disabled={isDeploying}
                     >
-                      <Icons.netlify className="mr-2 h-4 w-4" />
+                      <Icons.netlify className="mr-2 h-4 w-4 text-foreground/70" />
                       Deploy to Netlify
                     </Button>
                   </div>
@@ -329,16 +363,6 @@ export function EditorHeader({
               </>
             )}
           </div>
-
-          <DialogFooter className="sm:justify-start">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowDeployDialog(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

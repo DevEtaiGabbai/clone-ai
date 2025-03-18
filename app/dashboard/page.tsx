@@ -251,9 +251,6 @@ export default function Page() {
           </a>
           
           <div className="flex items-center gap-4">
-            <button className="p-2.5 hover:bg-muted rounded-full transition-colors">
-              <Search className="h-4 w-4 text-muted-foreground" />
-            </button>
 
             <Dialog open={netlifyDialogOpen} onOpenChange={setNetlifyDialogOpen}>
               <DialogTrigger asChild>
@@ -264,7 +261,7 @@ export default function Page() {
                   >
                     <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
                     <span className="text-xs font-medium">Netlify Connected</span>
-                    <span className="text-xs opacity-80 ml-1">({netlifyConnection.stats?.totalSites || 0} sites)</span>
+                    <span className="text-xs opacity-80">({netlifyConnection.stats?.totalSites || 0} sites)</span>
                   </Badge>
                 ) : (
                   <Button variant="outline" size="sm" className="h-9 px-4">

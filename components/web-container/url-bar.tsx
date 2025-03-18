@@ -1,14 +1,9 @@
 "use client";
 
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { MoreVertical, RotateCw, ExternalLink, Power } from "lucide-react";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { RotateCw, ExternalLink, Power, Globe, Copy, Check, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface UrlBarProps {
   url: string;
@@ -29,41 +24,13 @@ export function validateUrl(url: string) {
 }
 
 export function UrlBar({ url, loading, onUrlChange, onRefresh, onRestartDevServer }: UrlBarProps) {
-  // Extract just the path from the full URL
-  const getDisplayPath = (fullUrl: string) => {
-    try {
-      if (!fullUrl) return '';
-      const urlObj = new URL(fullUrl);
-      return urlObj.pathname || '/';
-    } catch {
-      return fullUrl.startsWith('/') ? fullUrl : `/${fullUrl}`;
-    }
-  };
-
-  const displayPath = getDisplayPath(url);
-
-  const handleUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    // If it starts with a slash or is empty, treat as a path
-    const newPath = inputValue.startsWith('/') ? inputValue : `/${inputValue}`;
-    
-    try {
-      if (url) {
-        const urlObj = new URL(url);
-        urlObj.pathname = newPath;
-        onUrlChange(urlObj.toString());
-      } else {
-        onUrlChange(newPath);
-      }
-    } catch {
-      onUrlChange(newPath);
-    }
-  };
-
-  const handleUrlKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      onRefresh();
-    }
+  const [copied, setCopied] = useState(false);
+  
+  const handleCopyUrl = () => {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const openInNewTab = () => {
@@ -73,45 +40,76 @@ export function UrlBar({ url, loading, onUrlChange, onRefresh, onRestartDevServe
   };
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-muted/30 border-b">
-      <div className="flex-1 flex items-center gap-1 bg-background rounded-md border px-2 h-9">
-        <div className="w-3 h-3 rounded-full bg-muted-foreground/20"></div>
-        <Input
-          type="text"
-          value={displayPath}
-          onChange={handleUrlChange}
-          onKeyDown={handleUrlKeyDown}
-          placeholder="Enter path (e.g., /dashboard)"
-          className="flex-1 border-0 h-8 focus-visible:ring-0 focus-visible:ring-offset-0 px-1"
-        />
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={onRefresh}
-        disabled={loading}
-        title="Refresh preview"
-        className="h-8 w-8"
-      >
-        <RotateCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
-      </Button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreVertical className="h-4 w-4" />
+    <div className="flex items-center gap-2 p-2 bg-muted/10 border-b backdrop-blur-sm">
+      <div className="flex-1 flex items-center bg-background/90 rounded-md border shadow-sm">
+        {/* URL display */}
+        <div className="flex-1 flex items-center px-3 py-1.5 h-9 gap-1.5 overflow-hidden">
+          <Globe className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
+          
+          {url ? (
+            <span className="text-sm truncate text-muted-foreground font-medium">{url}</span>
+          ) : (
+            <div className="flex-1 flex items-center">
+              <div className="h-4 bg-muted animate-pulse rounded w-full max-w-[300px]" />
+            </div>
+          )}
+        </div>
+        
+        {/* Actions group */}
+        <div className="flex items-center border-l">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleCopyUrl}
+            className="h-9 w-9 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted/20"
+            title={copied ? "URL copied!" : "Copy URL"}
+            disabled={!url}
+          >
+            {copied ? 
+              <Check className="h-3.5 w-3.5 text-green-500" /> : 
+              <Copy className="h-3.5 w-3.5" />
+            }
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={openInNewTab} disabled={!url} className="gap-2">
-            <ExternalLink className="h-4 w-4" />
-            Open in new tab
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={onRestartDevServer} className="gap-2">
-            <Power className="h-4 w-4" />
-            Restart Dev Server
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          
+          <div className="h-5 border-r mx-0.5 border-muted/20"></div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={openInNewTab}
+            className="h-9 w-9 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted/20"
+            title="Open in new tab"
+            disabled={!url}
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+          </Button>
+          
+          <div className="h-5 border-r mx-0.5 border-muted/20"></div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRefresh}
+            className="h-9 w-9 rounded-none text-muted-foreground hover:text-foreground hover:bg-muted/20"
+            title="Refresh preview"
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCw className="h-3.5 w-3.5" />}
+          </Button>
+          
+          <div className="h-5 border-r mx-0.5 border-muted/20"></div>
+          
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onRestartDevServer}
+            className="h-9 w-9 rounded-none rounded-r-md text-muted-foreground hover:text-foreground hover:bg-red-500/10"
+            title="Restart Dev Server"
+          >
+            <Power className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      </div>
     </div>
   );
 } 

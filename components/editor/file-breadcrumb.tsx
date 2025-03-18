@@ -106,18 +106,18 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
 
   return (
     <Breadcrumb>
-      <BreadcrumbList>
+      <BreadcrumbList className="flex flex-nowrap items-center text-xs">
         {pathSegments.map((segment, index) => {
           const isLast = index === pathSegments.length - 1;
           const path = pathSegments.slice(0, index + 1).join('/');
           const isFile = isLast && segment.includes('.');
           
           return (
-            <BreadcrumbItem key={index}>
+            <BreadcrumbItem key={index} className="flex-shrink-0">
               {isLast ? (
-                <BreadcrumbPage className="flex items-center gap-1.5">
-                  <File className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="text-foreground">{segment}</span>
+                <BreadcrumbPage className="flex items-center gap-1 px-1 py-0.5 rounded bg-muted/10">
+                  <File className="h-3 w-3 text-primary/70" />
+                  <span className="text-foreground font-medium truncate max-w-[120px]">{segment}</span>
                 </BreadcrumbPage>
               ) : (
                 <DropdownMenu 
@@ -130,14 +130,14 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
                 >
                   <DropdownMenuTrigger asChild>
                     <Button 
-                      variant="link" 
-                      className="flex items-center gap-1 p-0 h-auto text-muted-foreground hover:text-foreground"
+                      variant="ghost" 
+                      className="flex items-center gap-1 p-0 px-1 h-6 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/10 rounded"
                       onClick={(e) => handleDirectoryClick(path, e)}
                     >
                       {index === 0 ? (
-                        <Folder className="h-3.5 w-3.5 text-muted-foreground" />
+                        <Folder className="h-3 w-3 text-primary/70" />
                       ) : null}
-                      <span>{segment}</span>
+                      <span className="truncate max-w-[100px]">{segment}</span>
                       <ChevronRight 
                         className={cn(
                           "h-3 w-3 opacity-70 transition-transform duration-200",
@@ -157,31 +157,31 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
                           key={item.path}
                           onClick={(e) => handleItemClick(item, e)}
                           className={cn(
-                            "flex items-center gap-2",
+                            "flex items-center gap-2 text-xs py-1.5",
                             item.path === selectedFile && "bg-accent text-accent-foreground font-medium"
                           )}
                           disabled={item.path === selectedFile}
                         >
                           {item.type === 'directory' ? (
                             <>
-                              <Folder className="h-4 w-4 text-primary" />
-                              <span className="flex-1">{item.name}</span>
+                              <Folder className="h-3.5 w-3.5 text-primary/80" />
+                              <span className="flex-1 truncate">{item.name}</span>
                             </>
                           ) : (
                             <>
-                              <File className="h-4 w-4 text-muted-foreground" />
-                              <span>{item.name}</span>
+                              <File className="h-3.5 w-3.5 text-muted-foreground/80" />
+                              <span className="truncate">{item.name}</span>
                             </>
                           )}
                         </DropdownMenuItem>
                       ))
                     ) : (
-                      <DropdownMenuItem disabled>Empty directory</DropdownMenuItem>
+                      <DropdownMenuItem disabled className="text-xs">Empty directory</DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              {!isLast && <BreadcrumbSeparator />}
+              {!isLast && <BreadcrumbSeparator className="mx-1 text-muted-foreground/40" />}
             </BreadcrumbItem>
           );
         })}

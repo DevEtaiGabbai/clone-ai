@@ -72,12 +72,19 @@ export function EditorContent({
                 />
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-muted-foreground p-8">
-                <File className="h-16 w-16 mb-6 text-muted-foreground" />
-                <h3 className="text-xl font-medium mb-3">No file selected</h3>
-                <p className="text-sm text-center max-w-md mb-6">
+              <div className="flex flex-col items-center justify-center h-full bg-background/30 text-muted-foreground p-8">
+                <div className="w-16 h-16 rounded-full flex items-center justify-center bg-muted/20 border border-border/40 mb-6">
+                  <File className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-medium mb-2 text-foreground/90">No file selected</h3>
+                <p className="text-sm text-center max-w-md text-muted-foreground/80">
                   Select a file from the sidebar to start editing.
                 </p>
+                <div className="border border-border/20 rounded-md bg-muted/10 px-4 py-3 mt-6 max-w-sm">
+                  <p className="text-xs text-muted-foreground/70 text-center">
+                    Tip: Use <kbd className="px-1.5 py-0.5 bg-muted/30 rounded border border-border/30 text-[12px] font-mono">{navigator.platform.includes('Mac') ? 'Cmd' : 'Ctrl'} + S</kbd> to save your file.
+                  </p>
+                </div>
               </div>
             )}
           </div>

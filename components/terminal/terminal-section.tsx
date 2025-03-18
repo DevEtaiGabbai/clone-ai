@@ -65,25 +65,25 @@ export function TerminalSection({
 
   return (
     <ResizablePanel defaultSize={25} minSize={15} maxSize={50} className="flex flex-col overflow-hidden">
-      <div className="flex flex-col h-full overflow-hidden">
-        <div className="flex items-center border-b bg-muted/20 shrink-0 overflow-x-hidden">
-          <div className="flex-1 flex items-center overflow-x-auto">
+      <div className="flex flex-col h-full overflow-hidden bg-background/95">
+        <div className="flex items-center border-b border-border/50 bg-muted/5 shrink-0 overflow-x-hidden">
+          <div className="flex-1 flex items-center overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/10 scrollbar-track-transparent">
             {terminals.map(terminal => (
               <button
                 key={terminal.id}
                 className={cn(
-                  "flex items-center h-9 px-4 border-r",
+                  "flex items-center h-8 px-3 text-xs transition-colors",
                   activeTerminal === terminal.id
-                    ? "bg-background text-foreground"
-                    : "bg-muted/20 text-muted-foreground hover:bg-muted/30"
+                    ? "text-foreground font-medium border-b-2 border-b-primary"
+                    : "text-muted-foreground hover:text-foreground"
                 )}
                 onClick={() => setActiveTerminal(terminal.id)}
               >
-                <TerminalIcon className="h-4 w-4 mr-2" />
+                <TerminalIcon className="h-3.5 w-3.5 mr-1.5 opacity-80" />
                 <span>{terminal.name}</span>
                 {!terminal.isDevServer && (
                   <button
-                    className="ml-2 p-1 rounded-full hover:bg-muted"
+                    className="ml-2 opacity-0 group-hover:opacity-100 hover:text-muted-foreground/80 transition-opacity"
                     onClick={(e) => {
                       e.stopPropagation();
                       closeTerminal(terminal.id);
@@ -97,11 +97,12 @@ export function TerminalSection({
           </div>
           <Button
             variant="ghost"
-            size="sm"
-            className="h-9 px-3 rounded-none shrink-0"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-foreground"
             onClick={addNewTerminal}
+            title="New Terminal"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-3.5 w-3.5" />
           </Button>
         </div>
 
@@ -114,12 +115,12 @@ export function TerminalSection({
                 activeTerminal === terminal.id ? "block" : "hidden"
               )}
             >
-              <div className="h-full overflow-x-auto">
+              <div className="h-full overflow-x-auto terminal-wrapper">
                 <Terminal
                   ref={terminal.ref}
                   prompt="~/project > "
                   readOnly={terminal.isDevServer}
-                  className="h-full"
+                  className="h-full pb-6"
                   onCommand={terminal.isDevServer ? undefined : (command) => {
                     if (webContainerRef.current) {
                       webContainerRef.current.executeCommand(command, terminal.ref);
@@ -135,6 +136,17 @@ export function TerminalSection({
           ))}
         </div>
       </div>
+      
+      <style jsx global>{`
+        .terminal-wrapper .xterm-viewport {
+          padding-bottom: 16px !important;
+          overflow-y: auto !important;
+        }
+        
+        .terminal-wrapper .xterm-screen {
+          padding-bottom: 8px;
+        }
+      `}</style>
     </ResizablePanel>
   );
 } 
