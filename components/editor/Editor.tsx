@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { CodeMirrorEditor, EditorDocument, EditorUpdate, OnChangeCallback, OnMountCallback } from '@/components/editor/codemirror/CodeMirrorEditor';
+import { MonacoEditor, EditorDocument, EditorUpdate, OnChangeCallback, OnMountCallback } from '@/components/editor/MonacoEditor';
 import { cn } from '@/lib/utils';
+import { useTheme } from 'next-themes';
 
 interface EditorProps {
   value: string;
@@ -32,6 +33,20 @@ export function Editor({
   
   // Reference to track the current value to avoid unnecessary updates
   const currentValueRef = useRef(value);
+
+  // Track if component is mounted
+  const isMountedRef = useRef(false);
+  
+  // Get current theme
+  const { resolvedTheme } = useTheme();
+  
+  // Mark component as mounted when it's initialized
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // Update editor ID when file path changes
   useEffect(() => {
@@ -47,6 +62,9 @@ export function Editor({
   
   // Handle editor changes
   const handleChange: OnChangeCallback = useCallback((update) => {
+    // Safety check - don't process changes if unmounted
+    if (!isMountedRef.current) return;
+    
     // Prevent handling changes if we're in the middle of an update
     if (isUpdatingRef.current) return;
     
@@ -59,6 +77,9 @@ export function Editor({
   
   // Update editor content when value prop changes
   useEffect(() => {
+    // Safety check - don't update if unmounted
+    if (!isMountedRef.current) return;
+    
     // Skip if editor not mounted
     if (!editorRef.current) return;
     
@@ -75,21 +96,30 @@ export function Editor({
     currentValueRef.current = value;
     
     // Update editor content
-    editorRef.current.updateContent(value);
+    try {
+      editorRef.current.updateContent(value);
+    } catch (error) {
+      console.error('Error updating editor content:', error);
+    }
     
     // Reset flag after a short delay
     const timer = setTimeout(() => {
-      isUpdatingRef.current = false;
-    }, 50);
+      if (isMountedRef.current) {
+        isUpdatingRef.current = false;
+      }
+    }, 100);
     
     return () => clearTimeout(timer);
   }, [value]);
 
   return (
-    <div className={cn("h-full w-full", className)}>
-      <CodeMirrorEditor
+    <div 
+      className={cn("h-full w-full outline-none", className)}
+      data-filepath={filePath}
+    >
+      <MonacoEditor
         key={editorIdRef.current}
-        theme="dark"
+        theme={resolvedTheme as 'dark' | 'light'}
         doc={{
           value,
           filePath: filePath || '',
@@ -99,12 +129,12 @@ export function Editor({
         onChange={handleChange}
         onSave={onSave}
         onMount={handleEditorMount}
-        autoFocusOnDocumentChange={false}
+        autoFocusOnDocumentChange={true}
         preserveCursorPosition={true}
         debounceChange={0}
         settings={{
           tabSize: 2,
-          fontSize: '14px'
+          fontSize: 14
         }}
         className="h-full w-full"
       />

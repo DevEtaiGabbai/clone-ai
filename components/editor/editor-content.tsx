@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { File } from "lucide-react";
 import { Editor } from "./Editor";
 import { WebContainer } from "@/components/web-container";
@@ -29,29 +29,21 @@ export function EditorContent({
   data,
   devServerTerminalRef
 }: EditorContentProps) {
-  // Determine language based on file extension
-  const getLanguage = (filePath: string) => {
-    const extension = filePath.split('.').pop()?.toLowerCase();
-    
-    switch (extension) {
-      case 'js':
-      case 'jsx':
-      case 'ts':
-      case 'tsx':
-        return 'javascript';
-      case 'html':
-      case 'htm':
-        return 'html';
-      case 'css':
-        return 'css';
-      case 'json':
-        return 'json';
-      case 'md':
-        return 'markdown';
-      default:
-        return 'javascript'; // Default to JavaScript
+  const editorContainerRef = useRef<HTMLDivElement>(null);
+  
+  // When editor view is activated, ensure it has focus
+  useEffect(() => {
+    if (activeView === "editor" && editorContainerRef.current) {
+      // Find the Monaco editor instance and focus it
+      const editorElement = editorContainerRef.current.querySelector('.monaco-editor');
+      if (editorElement) {
+        // Use setTimeout to ensure the DOM is ready
+        setTimeout(() => {
+          (editorElement as HTMLElement).click();
+        }, 100);
+      }
     }
-  };
+  }, [activeView, selectedFile]);
 
   return (
     <ResizablePanel defaultSize={75} minSize={30}>
@@ -59,14 +51,16 @@ export function EditorContent({
         {/* Content Area */}
         <div className="flex-1 overflow-hidden">
           {/* Editor */}
-          <div className={cn("h-full", activeView !== "editor" && "hidden")}>
+          <div 
+            className={cn("h-full", activeView !== "editor" && "hidden")}
+            ref={editorContainerRef}
+          >
             {selectedFile ? (
-              <div className="h-full overflow-x-auto">
+              <div className="h-full overflow-x-auto focus-within:ring-0 focus-within:outline-none">
                 <Editor
                   value={fileContent}
                   onChange={handleFileChange}
                   onSave={handleFileSave}
-                  language={getLanguage(selectedFile)}
                   filePath={selectedFile}
                   className="h-full"
                 />
