@@ -1,6 +1,6 @@
 'use client';
 
-import { Search, ArrowUp, Globe, ChevronDown, CalendarDays, ArrowUpDown, Clock, BarChart2, Download, ArrowUpRight, ExternalLink, Loader2, Moon, Sun, Check, PanelTop } from 'lucide-react';
+import { Search, ArrowUp, Globe, ChevronDown, CalendarDays, ArrowUpDown, Clock, BarChart2, Download, ArrowUpRight, ExternalLink, Loader2, Moon, Sun, Check, PanelTop, LogOut, User } from 'lucide-react';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
@@ -11,21 +11,18 @@ import { WebsitePreview } from '@/components/layout/WebsitePreview';
 import type { ScreenshotData } from '@/types/screenshot';
 import { formatUrl, generateProject, getScreenshot } from '@/utils/screenshot';
 import { ProgressIndicator } from '@/components/ui/progress-indicator';
-import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { NetlifyConnectionCard } from '@/components/ui/netlify-connection';
 import { getInitialNetlifyConnection } from '@/lib/netlify';
 import { Badge } from '@/components/ui/badge';
+import { useSession, signOut } from '@/lib/auth-client';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Define Project type
 interface Project {
@@ -41,6 +38,9 @@ interface Project {
 }
 
 export default function Page() {
+  const { data: session, isPending } = useSession();
+  const userId = session?.user?.id;
+  const user = session?.user;
   const [inputValue, setInputValue] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,6 @@ export default function Page() {
   const [userProjects, setUserProjects] = useState<Project[]>([]);
   const [projectsLoading, setProjectsLoading] = useState(true);
   const router = useRouter();
-  const { data: session } = useSession();
   const [greeting, setGreeting] = useState("Hello, ");
   const [netlifyDialogOpen, setNetlifyDialogOpen] = useState(false);
   const [netlifyConnection, setNetlifyConnection] = useState(() => {
@@ -71,6 +70,13 @@ export default function Page() {
   // if (!session?.user) {
   //   redirect('/auth/login')
   // }
+
+  // Redirect if user is not authenticated
+  // useEffect(() => {
+  //   if (!isPending && !userId) {
+  //     redirect('/auth/login');
+  //   }
+  // }, [isPending, userId]);
 
   // Add this useEffect to change the greeting after initial render
   useEffect(() => {
@@ -92,31 +98,32 @@ export default function Page() {
     setGreeting(greetings[randomIndex]);
   }, []);
 
-  // Fetch user projects when session is available
+  // Fetch user projects when user ID is available
   useEffect(() => {
     async function fetchUserProjects() {
-      if (session?.user?.id) {
-        try {
-          setProjectsLoading(true);
-          
-          const response = await fetch(`/api/projects?userId=${session.user.id}`);
-          if (!response.ok) {
-            throw new Error('Failed to fetch projects');
-          }
-          
-          const data = await response.json();
-          setUserProjects(data);
-        } catch (error) {
-          console.error('Error fetching projects:', error);
-          toast.error('Error fetching projects');
-        } finally {
-          setProjectsLoading(false);
+      if (!userId) return;
+      
+      setProjectsLoading(true);
+      try {
+        // Use our project utility that handles authentication
+        const response = await fetch(`/api/projects?userId=${userId}`);
+        
+        if (!response.ok) {
+          throw new Error(`Error: ${response.status}`);
         }
+        
+        const data = await response.json();
+        setUserProjects(data);
+      } catch (error) {
+        console.error("Error fetching projects:", error);
+        toast.error("Failed to load projects");
+      } finally {
+        setProjectsLoading(false);
       }
     }
 
     fetchUserProjects();
-  }, [session]);
+  }, [userId]);
 
   // Add an effect to refresh Netlify connection state when dialog closes
   useEffect(() => {
@@ -184,29 +191,38 @@ export default function Page() {
   }
 
   async function handleLooksGood() {
+    if (!screenshotData || !userPrompt) {
+      toast.error("Missing screenshot data or prompt");
+      return;
+    }
+    
+    setStep('generating');
     setLoading(true);
-    setError(null);
-
+    
     try {
-      if (!screenshotData) throw new Error("No screenshot data available");
+      // Generate project using userId from session
+      const formattedUrl = formatUrl(screenshotData.originalUrl);
+      const result = await generateProject(
+        screenshotData, 
+        formattedUrl, 
+        userPrompt, 
+        userId || undefined
+      );
       
-      const formattedUrl = formatUrl(inputValue);
-      
-      // Include the user ID if available
-      const userId = session?.user?.id;
-      const data = await generateProject(screenshotData, formattedUrl, userPrompt, userId);
-      
-      if (data.projectId) {
-        setActiveGeneration({ projectId: data.projectId, progress: 0, status: 'pending' });
+      if (result.projectId) {
+        setActiveGeneration({ projectId: result.projectId, progress: 0, status: 'pending' });
         setStep('browse');
         
         // Refresh projects after a short delay to include the new one
-        setTimeout(() => {
-          if (session?.user?.id) {
-            fetch(`/api/projects?userId=${session.user.id}`)
-              .then(res => res.json())
-              .then(data => setUserProjects(data))
-              .catch(err => console.error('Error refreshing projects:', err));
+        setTimeout(async () => {
+          try {
+            const response = await fetch('/api/projects');
+            if (response.ok) {
+              const data = await response.json();
+              setUserProjects(data);
+            }
+          } catch (err) {
+            console.error('Error refreshing projects:', err);
           }
         }, 2000);
       }
@@ -216,6 +232,15 @@ export default function Page() {
       setLoading(false);
     }
   }
+
+  const openUserProfile = () => {
+    toast("User settings not available");
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    window.location.href = '/';  // Redirect to home after sign out
+  };
 
   const handleGetGreeting = () => {
     // Return the greeting from state
@@ -250,47 +275,53 @@ export default function Page() {
             <Icons.logo className="w-8 h-8" />
           </a>
           
-          <div className="flex items-center gap-4">
-
-            <Dialog open={netlifyDialogOpen} onOpenChange={setNetlifyDialogOpen}>
-              <DialogTrigger asChild>
-                {netlifyConnection.user ? (
-                  <Badge 
-                    variant="outline" 
-                    className="flex items-center gap-2 py-1.5 px-3 rounded-full bg-green-500/10 text-green-500 border-green-200/50 hover:bg-green-500/20 transition-colors"
-                  >
-                    <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-xs font-medium">Netlify Connected</span>
-                    <span className="text-xs opacity-80">({netlifyConnection.stats?.totalSites || 0} sites)</span>
-                  </Badge>
-                ) : (
-                  <Button variant="outline" size="sm" className="h-9 px-4">
-                    <Icons.netlify className="h-4 w-4 mr-2 text-[#00AD9F]" />
-                    Connect to Netlify
-                   </Button>
-                )}
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <NetlifyConnectionCard />
-              </DialogContent>
-            </Dialog>
-
-            <div className="h-9 w-9 rounded-full overflow-hidden hover:ring-primary transition-all">
-              {session?.user?.image ? (
-                <Image src={session.user.image} alt="Profile" width={36} height={36} />
-              ) : (
-                <Avatar>
-                  <AvatarFallback className="bg-primary/10">
-                    <span className="text-xs font-medium text-primary">
-                      {session?.user?.name?.charAt(0) || 'U'}
-                    </span>
-                  </AvatarFallback>
-                </Avatar>
-              )}
-            </div>
+          <div className="flex items-center">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <div className="h-9 w-9 rounded-full overflow-hidden hover:ring-2 hover:ring-primary cursor-pointer transition-all">
+                  {user?.image ? (
+                    <Image src={user.image} alt="Profile" width={36} height={36} />
+                  ) : (
+                    <Avatar>
+                      <AvatarFallback className="bg-primary/10">
+                        <span className="text-xs font-medium text-primary">
+                          {user?.name?.charAt(0) || 'U'}
+                        </span>
+                      </AvatarFallback>
+                    </Avatar>
+                  )}
+                </div>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={openUserProfile}>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setNetlifyDialogOpen(true)}>
+                  <Icons.netlify className="mr-2 h-4 w-4 text-[#00AD9F]" />
+                  <span>{netlifyConnection.user ? 'Netlify' : 'Connect to Netlify'}</span>
+                  {netlifyConnection.user && (
+                    <Badge variant="outline" className="ml-auto text-xs py-0 px-1.5 h-5 bg-green-500/10 text-green-500 border-green-200/50">
+                      {netlifyConnection.stats?.totalSites || 0} Sites
+                    </Badge>
+                  )}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleSignOut}>
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </nav>
+
+      <Dialog open={netlifyDialogOpen} onOpenChange={setNetlifyDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <NetlifyConnectionCard />
+        </DialogContent>
+      </Dialog>
 
       <main className="pt-16">
         {step === 'browse' && (
@@ -299,7 +330,7 @@ export default function Page() {
             <section className="min-h-[90vh] flex items-center justify-center px-6">
               <div className="max-w-2xl w-full space-y-10">
                 <div className="text-center space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                  {loading || !session ? (
+                  {loading || !isPending ? (
                     <div className="flex items-center justify-center gap-2">
                       <Skeleton className="h-6 w-40 rounded-md" />
                     </div>
@@ -307,17 +338,17 @@ export default function Page() {
                     <p className="text-muted-foreground flex items-center justify-center gap-2">
                       {handleGetGreeting()}
                       <span className="h-6 w-6 rounded-full overflow-hidden inline-flex items-center justify-center">
-                        {session?.user?.image ? (
-                          <Image src={session.user.image} alt="Profile" width={24} height={24} />
+                        {user?.image ? (
+                          <Image src={user.image} alt="Profile" width={24} height={24} />
                         ) : (
                           <div className="w-full h-full bg-primary/10 flex items-center justify-center">
                             <span className="text-xs font-medium text-primary">
-                              {session?.user?.name?.charAt(0) || 'U'}
+                              {user?.name?.charAt(0) || 'U'}
                             </span>
                           </div>
                         )}
                       </span>
-                      {session?.user?.name || session?.user?.email}
+                      {user?.name || user?.email}
                     </p>
                   )}
                   <h1 className="text-4xl sm:text-5xl font-bold tracking-tight">
@@ -525,7 +556,7 @@ export default function Page() {
                     // No projects
                     <div className="col-span-3 flex flex-col items-center justify-center py-12 text-center">
                       <div className="rounded-full bg-muted/30 p-4 mb-4">
-                        <Globe className="w-8 h-8 text-muted-foreground/50" />
+                        <Globe className="w-8 h-8 text-muted-foreground" />
                       </div>
                       <h3 className="text-lg font-medium mb-2">No projects yet</h3>
                       <p className="text-muted-foreground max-w-md">

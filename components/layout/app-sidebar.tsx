@@ -134,7 +134,7 @@ export function AppSidebar({
             className="w-full"
             onClick={() => router.push("/dashboard")}
           >
-            <ArrowLeft className="h-4 w-4" />
+            {/* <ArrowLeft className="h-4 w-4" /> */}
             <span className="text-xs text-muted-foreground">Back to dashboard</span>
           </Button>
         </div>

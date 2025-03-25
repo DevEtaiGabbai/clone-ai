@@ -34,13 +34,13 @@ export default function LoginPage() {
             Welcome back
           </h1>
           <p className="text-sm text-muted-foreground">
-            Enter your email to sign in to your account
+            Sign in with your social accounts
           </p>
         </div>
-        <UserAuthForm />
+        <UserAuthForm mode="signin" />
         <p className="px-8 text-center text-sm text-muted-foreground">
           <Link
-            href="/register"
+            href="/auth/signup"
             className="hover:text-brand underline underline-offset-4"
           >
             Don&apos;t have an account? Sign Up

@@ -1,19 +1,57 @@
 "use client"
 
 import * as React from "react"
-import { signIn } from "next-auth/react"
-
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
 import { Icons } from "@/components/ui/icons"
+import { toast } from "sonner"
+import { signIn } from "@/lib/auth-client"
 
-interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {}
+interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
+  mode?: "signin" | "signup"
+}
 
-export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
+export function UserAuthForm({ mode = "signin", className, ...props }: UserAuthFormProps) {
   const [isLoading, setIsLoading] = React.useState<boolean>(false)
   const [isGitHubLoading, setIsGitHubLoading] = React.useState<boolean>(false)
   const [isGoogleLoading, setIsGoogleLoading] = React.useState<boolean>(false)
+  const router = useRouter();
+
+  const signInWithGoogle = async () => {
+    try {
+      setIsGoogleLoading(true);
+      // Using the standard parameters supported by Better Auth
+      await signIn.social({
+        provider: "google",
+        callbackURL: "/dashboard" // Correct camelCase for the parameter
+      });
+      // Redirect handled by Better Auth
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong with Google authentication");
+    } finally {
+      setIsGoogleLoading(false);
+    }
+  };
+
+  const signInWithGitHub = async () => {
+    try {
+      setIsGitHubLoading(true);
+      // Using the standard parameters supported by Better Auth
+      await signIn.social({
+        provider: "github",
+        callbackURL: "/dashboard" // Correct camelCase for the parameter
+      });
+      // Redirect handled by Better Auth
+    } catch (error) {
+      console.error(error);
+      toast.error("Something went wrong with GitHub authentication");
+    } finally {
+      setIsGitHubLoading(false);
+    }
+  };
 
   return (
     <div className={cn("grid gap-6 w-full", className)} {...props}>
@@ -31,10 +69,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         variant="outline"
         type="button"
         className="w-full"
-        onClick={() => {
-          setIsGitHubLoading(true)
-          signIn("github")
-        }}
+        onClick={signInWithGitHub}
         disabled={isLoading || isGitHubLoading}
       >
         {isGitHubLoading ? (
@@ -48,10 +83,7 @@ export function UserAuthForm({ className, ...props }: UserAuthFormProps) {
         variant="outline"
         type="button"
         className="w-full"
-        onClick={() => {
-          setIsGoogleLoading(true)
-          signIn("google")
-        }}
+        onClick={signInWithGoogle}
         disabled={isLoading || isGoogleLoading}
       >
         {isGoogleLoading ? (

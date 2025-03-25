@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { TerminalTabInfo } from "@/components/web-container/types";
-import { Plus, X } from "lucide-react";
+import { Plus } from "lucide-react";
 
 interface TerminalTabsProps {
   activeTerminal: string;
@@ -43,9 +43,9 @@ export function TerminalTabs({
               e.stopPropagation();
               onTerminalRemove(id);
             }}
-            className="p-0.5 hover:bg-muted-foreground/20 rounded"
+            className="ml-1 px-1.5 py-0.5 text-white rounded flex items-center justify-center"
           >
-            <X className="h-3 w-3" />
+            hello world
           </button>
         </div>
       ))}

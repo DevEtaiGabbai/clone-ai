@@ -1,20 +1,23 @@
-import { HeroSection } from "@/components/marketing/hero-section"
-import { TimeEstimates } from "@/components/marketing/time-estimates"
-import { TechStack } from "@/components/marketing/tech-stack"
-import { PricingSection } from "@/components/marketing/pricing-section"
-import { FaqSection } from "@/components/marketing/faq-section"
-import { CtaSection } from "@/components/marketing/cta-section"
+"use client"
+import CallToAction from "@/components/marketing/call-to-action";
+import Facts from "@/components/marketing/facts";
+import Features from "@/components/marketing/features";
+import FooterSection from "@/components/marketing/footer";
+import HeroSection from "@/components/marketing/hero-section";
+import Pricing from "@/components/marketing/pricing";
+import StatsSection from "@/components/marketing/stats-section";
 
 export default function HomePage() {
   return (
-    <div className="space-y-24 sm:space-y-32">
+    <>
       <HeroSection />
-      <TimeEstimates />
-      <TechStack />
-      <PricingSection />
-      <FaqSection />
-      <CtaSection />
-    </div>
+      <Features />
+      <Facts />
+      <StatsSection />
+      <Pricing />
+      <CallToAction />
+      <FooterSection />
+    </>
   )
 }
 

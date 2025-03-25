@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
-import { Code, Globe, Download, Rocket, ChevronDown, ExternalLink, Copy, RefreshCw, Check, AlertCircle } from "lucide-react";
+import { Code, Globe, Download, Rocket, ChevronDown, ExternalLink, Copy, RefreshCw, Check, AlertCircle, Save, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileBreadcrumb } from "./file-breadcrumb";
 import { FileStatusPill, SaveStatus } from "@/components/ui/file-status-pill";
@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { getInitialNetlifyConnection, deployToNetlify } from "@/lib/netlify";
 import { cn } from "@/lib/utils";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui";
 
 interface EditorHeaderProps {
   activeView: "editor" | "preview";
@@ -185,7 +186,8 @@ export function EditorHeader({
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Main Save Button - Only show in editor mode */}
+          <Tooltip>
+            <TooltipTrigger asChild>
           {activeView === "editor" && (
             <Button 
               onClick={handleFileSave} 
@@ -193,15 +195,25 @@ export function EditorHeader({
               className={cn(
                 "h-7 px-3 gap-1.5 text-xs font-medium transition-all border",
                 unsavedChanges 
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 border-primary/30" 
+                  ? "bg-background border-border text-primary hover:text-black" 
                   : "bg-muted/30 hover:bg-muted/50 text-muted-foreground border-border/30"
               )}
               disabled={!unsavedChanges || saveStatus === 'saving'}
             >
-              <Icons.save className="h-3.5 w-3.5" />
+              <Save className="h-3.5 w-3.5" />
               Save
             </Button>
           )}
+            </TooltipTrigger>
+            <TooltipContent className="z-50 overflow-hidden rounded-md border bg-popover px-3 py-1.5 text-sm text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2">
+              <p className="flex items-center gap-1.5">
+                Save File
+                <kbd className="pointer-events-none text-muted-foreground h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 opacity-100 flex text-[11px] leading-none font-sans">
+                  {navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'} + S
+                </kbd>
+              </p>
+            </TooltipContent>
+          </Tooltip>
           
           {/* Status Pill - Only show in editor mode */}
           {activeView === "editor" && (

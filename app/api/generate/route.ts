@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { projects } from "@/lib/db/schema";
 import { Client } from "@upstash/workflow";
 import { eq } from "drizzle-orm";
+import { auth } from "@/lib/auth";
 
 // Interface for image data
 interface ImageData {
@@ -20,8 +21,19 @@ export async function POST(req: Request) {
   try {
     console.log("Generate API: Starting new project generation");
     
+    // Authentication check using Better Auth
+    const session = await auth.api.getSession({
+      headers: req.headers
+    });
+    
+    if (!session?.user) {
+      console.error("Generate API: Unauthorized access");
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    
     // Parse request body
-    const { images, html, userPrompt, siteUrl, userId } = await req.json();
+    const { images, html, userPrompt, siteUrl } = await req.json();
+    const userId = session.user.id; // Use the authenticated user ID
     
     // Validate required fields
     if (!images || !images.length) {

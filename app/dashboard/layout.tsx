@@ -5,7 +5,7 @@ interface DashboardLayoutProps {
 export default async function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen">
-      {children}
+        {children}
     </div>
   )
 }

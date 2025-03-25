@@ -15,8 +15,7 @@ import { EditorHeader } from "@/components/editor/editor-header";
 import { EditorContent } from "@/components/editor/editor-content";
 import { ProjectData, FileTreeNode, TerminalTab } from "@/types/project";
 import { TerminalSection } from "@/components/terminal/terminal-section";
-import { Input } from "@/components/ui/input";
-import { Alert } from "@/components/ui/alert";
+
 
 // Utility function for debouncing
 const debounce = <T extends (...args: any[]) => any>(
@@ -193,31 +192,48 @@ export default function ClonePage({ params }: { params: { id: string } }) {
       const fileData = data?.files.find(f => f.path === path);
       
       if (fileData) {
-        // Only update if we're selecting a different file
-        if (selectedFile !== path) {
-          // Update all related state in a consistent manner
-          setSelectedFile(path);
-          setSelectedDirectory(null);
-          
-          // Set the file content
-          setFileContent(fileData.content);
-          
-          // Reset unsaved changes and update save status
-          setUnsavedChanges(false);
-          setSaveStatus('saved');
-          updateLastSavedTime();
+        try {
+          // Only update if we're selecting a different file
+          if (selectedFile !== path) {
+            // Update all related state in a consistent manner
+            setSelectedFile(path);
+            setSelectedDirectory(null);
+            
+            // Set the file content - ensure this is actually different before updating
+            if (fileContent !== fileData.content) {
+              // Debug log in development
+              if (process.env.NODE_ENV === 'development') {
+                console.debug('File content changed due to selection:', {
+                  path,
+                  prevLength: fileContent?.length || 0,
+                  newLength: fileData.content.length,
+                  timestamp: new Date().toISOString()
+                });
+              }
+              
+              setFileContent(fileData.content);
+            }
+            
+            // Reset unsaved changes and update save status
+            setUnsavedChanges(false);
+            setSaveStatus('saved');
+            updateLastSavedTime();
 
-          // If in preview mode, automatically switch to editor mode when a file is selected
-          if (activeView === "preview") {
-            setActiveView("editor");
+            // If in preview mode, automatically switch to editor mode when a file is selected
+            if (activeView === "preview") {
+              setActiveView("editor");
+            }
           }
+        } catch (error) {
+          console.error('Error selecting file:', error);
+          toast.error('Error loading file');
         }
       } else {
         console.error(`File not found in data: ${path}`);
         toast.error(`Could not load file: ${path}`);
       }
     }
-  }, [data, unsavedChanges, getDirectoryContents, activeView, selectedFile]);
+  }, [data, unsavedChanges, getDirectoryContents, activeView, selectedFile, fileContent]);
 
   const updateLastSavedTime = () => {
     const now = new Date();
@@ -236,16 +252,39 @@ export default function ClonePage({ params }: { params: { id: string } }) {
     // Skip if content hasn't changed to avoid unnecessary re-renders
     if (newContent === fileContent) return;
     
+    // Debug log in development
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('File content changed:', {
+        file: selectedFile,
+        prevLength: fileContent.length,
+        newLength: newContent.length,
+        isDifferent: newContent !== fileContent,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
     // Update the file content state
     setFileContent(newContent);
     
-    // Mark as unsaved if content is different from the original
+    // Get the most up-to-date content from our data state
+    // This ensures we're always comparing against the latest saved version
     const originalContent = data?.files.find(f => f.path === selectedFile)?.content || '';
-    if (newContent !== originalContent && !unsavedChanges) {
-      setUnsavedChanges(true);
-      setSaveStatus('not-saved');
+    
+    // Only mark as unsaved if content differs from the latest saved version
+    if (newContent !== originalContent) {
+      if (!unsavedChanges) {
+        setUnsavedChanges(true);
+        setSaveStatus('not-saved');
+      }
+    } else {
+      // Content matches saved version, so mark as saved
+      if (unsavedChanges) {
+        setUnsavedChanges(false);
+        setSaveStatus('saved');
+        updateLastSavedTime();
+      }
     }
-  }, [selectedFile, data?.files, unsavedChanges, fileContent]);
+  }, [selectedFile, data?.files, unsavedChanges, fileContent, updateLastSavedTime]);
 
   // Function to refresh the preview without restarting the server
   const refreshPreview = useCallback(() => {
@@ -267,7 +306,30 @@ export default function ClonePage({ params }: { params: { id: string } }) {
       
       // Get the current file path and content from state
       const currentFilePath = selectedFile;
+      
+      // The content from state should be the most up-to-date version
+      // since it's updated in the handleFileChange function
       const currentContent = fileContent;
+      
+      // Add a sanity check - avoid saving empty content due to sync issues
+      if (!currentContent || currentContent === '') {
+        console.warn('Attempted to save empty file content - possible sync issue');
+        
+        // Verify with the user before saving empty content
+        if (!window.confirm('The file appears to be empty. Do you want to save it anyway?')) {
+          setSaveStatus('not-saved');
+          return;
+        }
+      }
+      
+      // Debug log in development
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Saving file:', {
+          path: currentFilePath,
+          contentLength: currentContent.length,
+          timestamp: new Date().toISOString()
+        });
+      }
       
       // First save to the database to ensure data persistence
       const res = await fetch(`/api/projects/${params.id}/files`, {
@@ -286,7 +348,7 @@ export default function ClonePage({ params }: { params: { id: string } }) {
         throw new Error(errorData.error || 'Failed to save file to database');
       }
       
-      // Update local data
+      // Update local data immediately with the SAME content we just sent to the server
       setData((prev) => {
         if (!prev) return prev;
         
@@ -303,6 +365,11 @@ export default function ClonePage({ params }: { params: { id: string } }) {
           files: updatedFiles,
         };
       });
+      
+      // Since we've updated the data with the current content, update the unsaved status
+      setUnsavedChanges(false);
+      setSaveStatus('saved');
+      updateLastSavedTime();
       
       // Then update the file in WebContainer
       if (webContainerRef.current) {
@@ -321,11 +388,6 @@ export default function ClonePage({ params }: { params: { id: string } }) {
           toast.error('File saved to database but preview may not reflect changes');
         }
       }
-
-      // Update save status
-      setUnsavedChanges(false);
-      setSaveStatus('saved');
-      updateLastSavedTime();
       
       // Show success toast
       toast.success('File saved successfully');
@@ -334,7 +396,7 @@ export default function ClonePage({ params }: { params: { id: string } }) {
       toast.error(`Failed to save file: ${err instanceof Error ? err.message : 'Unknown error'}`);
       console.error('Save error:', err);
     }
-  }, [selectedFile, fileContent, params.id, data, saveStatus, webContainerRef]);
+  }, [selectedFile, fileContent, params.id, data, saveStatus, webContainerRef, updateLastSavedTime]);
 
   // Terminal management functions
   const addNewTerminal = useCallback(() => {

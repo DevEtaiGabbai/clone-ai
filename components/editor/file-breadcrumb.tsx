@@ -1,4 +1,4 @@
-import { File, Folder, ChevronRight } from 'lucide-react';
+import { File, Folder } from 'lucide-react';
 import { memo, useState, useEffect } from 'react';
 import {
   Breadcrumb,
@@ -92,7 +92,7 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
     const file = items.find(item => item.type === 'file');
     if (file) return file.path;
     
-    // If no direct file, look in subdirectories
+    // If no direct files, look in subdirectories
     for (const item of items) {
       if (item.type === 'directory') {
         const subContents = getDirectoryContents(item.path);
@@ -110,7 +110,6 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
         {pathSegments.map((segment, index) => {
           const isLast = index === pathSegments.length - 1;
           const path = pathSegments.slice(0, index + 1).join('/');
-          const isFile = isLast && segment.includes('.');
           
           return (
             <BreadcrumbItem key={index} className="flex-shrink-0">
@@ -134,16 +133,8 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
                       className="flex items-center gap-1 p-0 px-1 h-6 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/10 rounded"
                       onClick={(e) => handleDirectoryClick(path, e)}
                     >
-                      {index === 0 ? (
-                        <Folder className="h-3 w-3 text-primary/70" />
-                      ) : null}
-                      <span className="truncate max-w-[100px]">{segment}</span>
-                      <ChevronRight 
-                        className={cn(
-                          "h-3 w-3 opacity-70 transition-transform duration-200",
-                          openDropdown === path && "rotate-90"
-                        )} 
-                      />
+                      {index === 0 && <Folder className="h-3 w-3 text-primary/70" />}
+                      <span className="truncate max-w-[80px]">{segment}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent 
@@ -181,7 +172,7 @@ export const FileBreadcrumb = memo<FileBreadcrumbProps>(({
                   </DropdownMenuContent>
                 </DropdownMenu>
               )}
-              {!isLast && <BreadcrumbSeparator className="mx-1 text-muted-foreground/40" />}
+              {!isLast && <BreadcrumbSeparator className="mx-0" />}
             </BreadcrumbItem>
           );
         })}

@@ -31,10 +31,10 @@ export default function RegisterPage() {
               Create an account
             </h1>
             <p className="text-sm text-muted-foreground">
-              Enter your email below to create your account
+              Sign up with your social accounts
             </p>
           </div>
-          <UserAuthForm />
+          <UserAuthForm mode="signup" />
           <p className="px-8 text-center text-sm text-muted-foreground">
             By clicking continue, you agree to our{" "}
             <Link

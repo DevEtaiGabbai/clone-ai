@@ -9,7 +9,7 @@ export const editorThemes = {
       { token: "comment", foreground: "#8b949e" },
     ],
     colors: {
-      "editor.background": "#1c1c1c",
+      "editor.background": "#0b0b0b",
       "editor.foreground": "#c9d1d9",
       "editor.lineHighlightBackground": "#161b22",
       "editorLineNumber.foreground": "#6e7681",

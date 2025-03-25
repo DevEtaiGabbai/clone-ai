@@ -13,6 +13,17 @@ interface EditorProps {
   editable?: boolean;
 }
 
+// Define custom types for our refs
+interface MonacoEditorRef {
+  getModel: () => {
+    getValue: () => string;
+  } | null;
+}
+
+interface EditorWrapperRef {
+  updateContent: (content: string) => void;
+}
+
 export function Editor({
   value,
   onChange,
@@ -25,20 +36,25 @@ export function Editor({
   // Create a stable ID for the editor instance
   const editorIdRef = useRef(`editor-${filePath || Math.random().toString(36).substring(2, 9)}`);
   
-  // Reference to track if we're in the middle of an update
-  const isUpdatingRef = useRef(false);
+  // Store the actual Monaco editor instance directly
+  const monacoEditorRef = useRef<MonacoEditorRef | null>(null);
   
-  // Reference to the editor instance
-  const editorRef = useRef<{ updateContent: (content: string) => void } | null>(null);
+  // Wrapper for communicating with parent
+  const editorWrapperRef = useRef<EditorWrapperRef | null>(null);
   
-  // Reference to track the current value to avoid unnecessary updates
-  const currentValueRef = useRef(value);
-
   // Track if component is mounted
   const isMountedRef = useRef(false);
   
+  // Store the current save handler
+  const saveHandlerRef = useRef(onSave);
+  
   // Get current theme
   const { resolvedTheme } = useTheme();
+  
+  // Update save handler ref when prop changes
+  useEffect(() => {
+    saveHandlerRef.current = onSave;
+  }, [onSave]);
   
   // Mark component as mounted when it's initialized
   useEffect(() => {
@@ -48,69 +64,115 @@ export function Editor({
     };
   }, []);
   
-  // Update editor ID when file path changes
-  useEffect(() => {
-    if (filePath) {
-      editorIdRef.current = `editor-${filePath}`;
-    }
-  }, [filePath]);
-  
-  // Handle editor instance reference
+  // Handle direct access to the Monaco editor
   const handleEditorMount: OnMountCallback = useCallback((editor) => {
-    editorRef.current = editor;
-  }, []);
+    // Store the wrapper for communicating with parent
+    editorWrapperRef.current = editor;
+    
+    // Store direct reference to monaco editor (if available from the editor object)
+    // This is a bit of a hack, but necessary to get direct access
+    const editorInstance = editor as any;
+    if (editorInstance && editorInstance._editor) {
+      monacoEditorRef.current = editorInstance._editor;
+    }
+    
+    // Log when editor mounts
+    if (process.env.NODE_ENV === 'development') {
+      console.debug('Monaco editor mounted', {
+        filePath,
+        initialContentLength: value.length,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [filePath, value]);
   
-  // Handle editor changes
+  // Simplified change handler - directly use the monaco editor value
   const handleChange: OnChangeCallback = useCallback((update) => {
     // Safety check - don't process changes if unmounted
     if (!isMountedRef.current) return;
     
-    // Prevent handling changes if we're in the middle of an update
-    if (isUpdatingRef.current) return;
-    
-    // Only notify parent if content actually changed
-    if (update.content !== currentValueRef.current) {
-      currentValueRef.current = update.content;
+    try {
+      // Always get content directly from Monaco editor if possible
+      let actualContent = update.content;
+      if (monacoEditorRef.current) {
+        const model = monacoEditorRef.current.getModel();
+        if (model) {
+          actualContent = model.getValue();
+        }
+      }
+      
+      // Notify parent component about change
+      onChange(actualContent);
+      
+    } catch (error) {
+      console.error('Error handling editor change:', error);
+      
+      // Fallback to the update content
       onChange(update.content);
     }
   }, [onChange]);
   
+  // Handle save request - get content directly from editor
+  const handleSave = useCallback(() => {
+    if (!saveHandlerRef.current || !isMountedRef.current) return;
+    
+    if (process.env.NODE_ENV === 'development') {
+      // Log the actual content being saved
+      try {
+        let currentContent = value;
+        if (monacoEditorRef.current) {
+          const model = monacoEditorRef.current.getModel();
+          if (model) {
+            currentContent = model.getValue();
+          }
+        }
+        
+        console.debug('Editor save requested', {
+          filePath,
+          contentLength: currentContent?.length,
+          timestamp: new Date().toISOString()
+        });
+      } catch (error) {
+        console.error('Error getting editor content:', error);
+      }
+    }
+    
+    // Always sync content before save
+    try {
+      if (monacoEditorRef.current) {
+        const model = monacoEditorRef.current.getModel();
+        if (model) {
+          const currentContent = model.getValue();
+          onChange(currentContent);
+        }
+      }
+    } catch (error) {
+      console.error('Error syncing content before save:', error);
+    }
+    
+    // Call the current save handler
+    saveHandlerRef.current();
+  }, [value, filePath, onChange]);
+  
   // Update editor content when value prop changes
   useEffect(() => {
-    // Safety check - don't update if unmounted
-    if (!isMountedRef.current) return;
+    if (!isMountedRef.current || !editorWrapperRef.current) return;
     
-    // Skip if editor not mounted
-    if (!editorRef.current) return;
-    
-    // Skip if value hasn't changed
-    if (value === currentValueRef.current) return;
-    
-    // Skip if we're in the middle of an update
-    if (isUpdatingRef.current) return;
-    
-    // Set flag to prevent handling our own changes
-    isUpdatingRef.current = true;
-    
-    // Update our reference
-    currentValueRef.current = value;
-    
-    // Update editor content
     try {
-      editorRef.current.updateContent(value);
+      // Update content in the editor
+      editorWrapperRef.current.updateContent(value);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Editor content updated from props', {
+          filePath,
+          newValueLength: value.length,
+          timestamp: new Date().toISOString()
+        });
+      }
     } catch (error) {
       console.error('Error updating editor content:', error);
     }
-    
-    // Reset flag after a short delay
-    const timer = setTimeout(() => {
-      if (isMountedRef.current) {
-        isUpdatingRef.current = false;
-      }
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [value]);
+  }, [value, filePath]);
 
   return (
     <div 
@@ -127,7 +189,7 @@ export function Editor({
         }}
         editable={editable}
         onChange={handleChange}
-        onSave={onSave}
+        onSave={handleSave}
         onMount={handleEditorMount}
         autoFocusOnDocumentChange={true}
         preserveCursorPosition={true}

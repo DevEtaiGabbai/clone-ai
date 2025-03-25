@@ -13,14 +13,14 @@ interface FileStatusPillProps {
   className?: string;
 }
 
-export function FileStatusPill({ 
-  status: externalStatus, 
+export function FileStatusPill({
+  status: externalStatus,
   lastSavedTime: externalLastSavedTime,
   className
 }: FileStatusPillProps) {
   const [internalStatus, setInternalStatus] = useState<SaveStatus>('saved');
   const [internalLastSavedTime, setInternalLastSavedTime] = useState<string>('');
-  
+
   // Use either external or internal state
   const status = externalStatus || internalStatus;
   const lastSavedTime = externalLastSavedTime || internalLastSavedTime;
@@ -75,30 +75,21 @@ export function FileStatusPill({
   const statusDetails = getStatusDetails();
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className={cn(
-            "inline-flex items-center gap-2 px-3 py-1.5 rounded-md border shadow-sm transition-all duration-200",
-            statusDetails.bgColor,
-            statusDetails.borderColor,
-            className
-          )}>
-            <span className={statusDetails.iconColor}>
-              {statusDetails.icon}
-            </span>
-            <span className={cn(
-              "text-xs font-medium",
-              statusDetails.textColor
-            )}>
-              {statusDetails.text}
-            </span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs">
-          <p>Press {navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl'} + S to save</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div className={cn(
+      "inline-flex items-center gap-2 px-3 py-1.5 rounded-md border shadow-sm transition-all duration-200",
+      statusDetails.bgColor,
+      statusDetails.borderColor,
+      className
+    )}>
+      <span className={statusDetails.iconColor}>
+        {statusDetails.icon}
+      </span>
+      <span className={cn(
+        "text-xs font-medium",
+        statusDetails.textColor
+      )}>
+        {statusDetails.text}
+      </span>
+    </div>
   );
 } 

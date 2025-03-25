@@ -198,53 +198,104 @@ export const MonacoEditor = ({
           if (!editorRef.current) return;
           
           try {
-            const currentContent = editorRef.current.getValue();
-            if (currentContent === content) return;
+            // First, check if the editor is already showing this content
+            const currentEditorContent = editorRef.current.getValue();
             
-            // Save cursor position/selection before update
-            const selection = editor.getSelection();
-            
-            // Update content - use a safer approach to avoid null model errors
-            const model = editor.getModel();
-            
-            if (model) {
-              // Use the model's full range
-              const fullRange = model.getFullModelRange();
-              if (fullRange) {
-                // Update with executeEdits to preserve cursor
-                editor.executeEdits('external', [{
-                  range: fullRange,
-                  text: content,
-                  forceMoveMarkers: true
-                }]);
-              } else {
-                // Fallback to setValue if the range is unavailable
-                editor.setValue(content);
-              }
-            } else {
-              // Fallback to setValue if the model is unavailable
-              editor.setValue(content);
+            // If content is already correct, just update our reference and return
+            if (currentEditorContent === content) {
+              contentRef.current = content;
+              return;
             }
             
+            // Log the update operation
+            if (process.env.NODE_ENV === 'development') {
+              console.debug('Updating editor content:', {
+                currentLength: currentEditorContent.length,
+                newLength: content.length,
+                timestamp: new Date().toISOString()
+              });
+            }
+            
+            // Save cursor position/selection before update
+            const selection = editorRef.current.getSelection();
+            
+            // Clear any undo history to avoid issues
+            try {
+              const model = editorRef.current.getModel();
+              if (model && model._commandManager) {
+                model._commandManager.clear();
+              }
+            } catch (e) {
+              // Ignore errors when accessing internal APIs
+            }
+            
+            // SIMPLE APPROACH: Direct setValue is most reliable
+            editorRef.current.setValue(content);
+            
+            // ALWAYS update our reference after changing editor content
             contentRef.current = content;
             
-            // Restore cursor position if needed
+            // Verify the update worked correctly
+            const afterContent = editorRef.current.getValue();
+            if (afterContent !== content) {
+              console.error('Editor content verification failed!', {
+                expected: content.length,
+                actual: afterContent.length
+              });
+              
+              // Last resort retry
+              setTimeout(() => {
+                try {
+                  editorRef.current?.setValue(content);
+                  contentRef.current = content;
+                } catch (e) {
+                  console.error('Retry setValue failed:', e);
+                }
+              }, 0);
+            }
+            
+            // Restore selection if needed
             if (preserveCursorPosition && selection) {
-              // Use the safe method to restore cursor
-              safeSetCursorPosition(selection);
+              try {
+                // Create a new implementation of safeSetCursorPosition that uses editor ref
+                const currentEditor = editorRef.current;
+                if (currentEditor && selection) {
+                  const model = currentEditor.getModel();
+                  if (model) {
+                    // Validate the selection is within model bounds
+                    const lineCount = model.getLineCount();
+                    const isSelectionValid = 
+                      selection.startLineNumber <= lineCount &&
+                      selection.endLineNumber <= lineCount;
+                    
+                    if (isSelectionValid) {
+                      currentEditor.setSelection(selection);
+                      currentEditor.revealPositionInCenter({
+                        lineNumber: selection.positionLineNumber || selection.startLineNumber,
+                        column: selection.positionColumn || selection.startColumn
+                      });
+                    }
+                  }
+                }
+              } catch (e) {
+                console.error('Error restoring cursor position:', e);
+              }
               
               // Ensure focus is maintained
               setTimeout(() => {
-                if (editorRef.current) {
-                  editorRef.current.focus();
+                try {
+                  editorRef.current?.focus();
+                } catch (e) {
+                  console.error('Error focusing editor:', e);
                 }
               }, 0);
             }
           } catch (error) {
             console.error('Error in updateContent:', error);
-            // Fallback to direct setValue in case of any errors
+            
+            // Fallback to direct setValue as last resort
             try {
-              editor.setValue(content);
+              editorRef.current.setValue(content);
               contentRef.current = content;
             } catch (e) {
               console.error('Fallback setValue also failed:', e);
@@ -265,31 +316,86 @@ export const MonacoEditor = ({
     setMounted(true);
   }, [onMount, handleSave, debounceScroll, onScroll, preserveCursorPosition, updateFocusState]);
 
+  // Main model/content initialization when the document changes
+  useEffect(() => {
+    if (!mounted || !editorRef.current) return;
+    
+    // If doc value changed and differs from our content ref, update editor content
+    if (doc?.value !== undefined && doc.value !== contentRef.current) {
+      try {
+        // Update content in editor
+        editorRef.current.setValue(doc.value);
+        
+        // Update our reference
+        contentRef.current = doc.value;
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.debug('Document value changed, updating editor content:', {
+            docLength: doc.value.length,
+            refLength: contentRef.current.length,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error) {
+        console.error('Error updating editor content on doc change:', error);
+      }
+    }
+  }, [mounted, doc?.value]);
+
   // Handle editor content changes
   const handleEditorChange = useCallback((value: string | undefined) => {
     if (!value || !editorRef.current) return;
     
-    // Skip if content hasn't changed to avoid unnecessary updates
-    if (value === contentRef.current) return;
-    
-    // Store the new content
-    contentRef.current = value;
-    
-    // Get current selection and cursor position before notifying parent
-    const currentSelection = editorRef.current.getSelection();
-    
-    // Remember selection for later use
-    prevSelectionRef.current = currentSelection;
-    
-    // Notify parent of changes
-    onChange?.({
-      content: value,
-      selection: currentSelection
-    });
-    
-    // Mark that we've made an edit (helps with cursor positioning)
-    initialEditMadeRef.current = true;
-  }, [onChange]);
+    try {
+      // ALWAYS get the actual value directly from the editor
+      // This is the most critical part to avoid sync issues
+      const actualEditorValue = editorRef.current.getValue();
+      
+      // Skip if content hasn't actually changed from our reference
+      if (actualEditorValue === contentRef.current) return;
+      
+      // Add detailed logging to diagnose sync issues
+      if (process.env.NODE_ENV === 'development') {
+        console.debug('Editor change detected:', {
+          valueParam: value.length,
+          actualValue: actualEditorValue.length,
+          refValue: contentRef.current.length,
+          allMatch: value === actualEditorValue && actualEditorValue === contentRef.current,
+          paramMatchesActual: value === actualEditorValue,
+          refMatchesActual: contentRef.current === actualEditorValue,
+          docValue: doc?.value?.length,
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      // ALWAYS update our reference with the actual editor value
+      contentRef.current = actualEditorValue;
+      
+      // Get current selection
+      const currentSelection = editorRef.current.getSelection();
+      prevSelectionRef.current = currentSelection;
+      
+      // Very important: ALWAYS notify parent with the actual editor value
+      // This avoids situations where the reported value isn't what's in the editor
+      onChange?.({
+        content: actualEditorValue,
+        selection: currentSelection
+      });
+      
+      initialEditMadeRef.current = true;
+    } catch (error) {
+      console.error('Error in handleEditorChange:', error);
+      
+      // If we can't get the actual value, use the parameter as fallback
+      if (value !== contentRef.current) {
+        contentRef.current = value;
+        onChange?.({
+          content: value,
+          selection: prevSelectionRef.current
+        });
+      }
+    }
+  }, [onChange, doc?.value]);
 
   // Apply editor settings
   const editorSettings = {
